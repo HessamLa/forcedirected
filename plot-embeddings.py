@@ -5,30 +5,23 @@ import matplotlib.pyplot as plt
 
 import networkx as nx
 
-import torch
-
-
-
 # %%
 dataset = 'cora'
 dataset = 'ego-facebook'
-csvpath = f'./embeddings_BKUP/{dataset}/stats.csv'
+csvpath = f'./embeddings/{dataset}/stats.csv'
 df = pd.read_csv(csvpath)
 print(df.head())
 
 meancols = [col for col in df.columns 
             if col.endswith('mean') and 
-            col.startswith('hops') and
             not col.startswith('hopsinf')]
 # print(meancols)
 stdcols = [col for col in df.columns 
            if col.endswith('std') and 
-           col.startswith('hops') and
            not col.startswith('hopsinf')]
 # print(meancols)
 
 ax = df[meancols].iloc[-400:].plot(title=dataset)
-# ax = df[meancols].plot(title=dataset)
 
 # Retrieve the line colors used in the plot
 line_colors = [line.get_color() for line in ax.get_lines()]
@@ -88,7 +81,7 @@ from utilities import load_graph_networkx, process_graph_networkx
 Gx, data = load_graph_networkx(datasetname=dataset, rootpath='../datasets')
 G, A, degrees, hops = process_graph_networkx(Gx)
 
-embedpath = f'./embeddings_BKUP/{dataset}/mbd.npy'
+embedpath = f'./embeddings/{dataset}/mbd.npy'
 G, A, degrees, hops = process_graph_networkx(Gx)
 Z = np.load(embedpath)
 draw_2d(Gx, Z, list(Gx.nodes), degrees)
@@ -134,40 +127,32 @@ animation.save('rotation.gif', writer='pillow')
 # plt.show()
 plt.show()
 # %%
-# embedding performace
-noisetag, rselecttag = ('', '')
-dataset = 'cora'
+dataset, noisetag, selecttag = ('cora', '', '')
 
 noisetag = 'noise'
-rselecttag = 'rselect'
+selecttag = 'rselect'
 dataset = 'ego-facebook'
 
-csvpath = f'./embeddings-test/{dataset}-{noisetag}-{rselecttag}/stats.csv'
+csvpath = f'./embeddings-test/{dataset}-{noisetag}-{selecttag}/stats.csv'
 
 df = pd.read_csv(csvpath)
 # print(df.head())
 
-print(df.columns)
-# df['relocs-mean'].plot()
-print(df['relocs-mean'].head())
-
-meancols = [col for col in df.columns 
+hopsmean = [col for col in df.columns 
             if col.endswith('mean') and 
+            col.startswith('hops') and
             not col.startswith('hopsinf')]
 # print(meancols)
-stdcols = [col for col in df.columns 
+hopsstd = [col for col in df.columns 
            if col.endswith('std') and 
+           col.startswith('hops') and
            not col.startswith('hopsinf')]
-# %%
-v = df['relocs-mean'].iloc[0]
-print(type(v), v)
-# %%
-a = np.array([1,2,3,4])
-a = torch.tensor(a).float()
-print(type(a), a)
-b = torch.sum(a)
-print(type(b), b)
-b = torch.mean(a)
-print(type(b), b, b.item())
 
-print(a.numpy(), b.numpy())
+fromidx = 1
+toidx = -1
+# toidx = 125
+df[['relocs-mean', 'wrelocs-mean']][fromidx:toidx].plot(title=f"mean relocs {csvpath}")
+df[['relocs-std', 'wrelocs-std']][fromidx:toidx].plot(title=f"std relocs {csvpath}")
+
+df[hopsmean][fromidx:toidx].plot(title=f"mean hops {csvpath}")
+df[hopsstd][fromidx:toidx].plot(title=f"std hops {csvpath}")
