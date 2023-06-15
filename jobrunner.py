@@ -35,6 +35,8 @@ import subprocess
 
 codes = []
 commands = []
+root_out='embeddings-bigred'
+root_out='embeddings-carb'
 for dsname in ['cora', 'ego-facebook']:
     for add_noise in ['--add-noise ', '']:
         for do_random_selection in ['--do-random-selection ', '']:
@@ -46,12 +48,12 @@ for dsname in ['cora', 'ego-facebook']:
             # do_random_selection = "--do-random-selection "
             taskname="embed"
             pycode = f" embed.py --dataset={dsname} "
-            pycode+= f" --outputdir=embeddings-test/{dsname}-{noisetag}-{rselecttag}"
+            pycode+= f" --outputdir={root_out}/{dsname}-{noisetag}-{rselecttag}"
             pycode+= f" {add_noise} {do_random_selection}"
-            pycode+= f" --description \"dataset:{dsname} {noisetag} {rselecttag}\""
+            pycode+= f" --description=\"dataset:{dsname} {noisetag} {rselecttag}\""
             
-            outfile = f"{taskname}-{dsname}_%j.txt" 
-            errfile = f"{taskname}-{dsname}_%j.err"
+            outfile = f"{root_out}/{taskname}-{dsname}_%j.txt" 
+            errfile = f"{root_out}/{taskname}-{dsname}_%j.err"
 
             command = f"srun -o {outfile} -e {errfile}"
             command+=f" python {pycode} " 
@@ -64,7 +66,7 @@ print(codes)
 # %%
 def submit_job(sbatch_directives, job_name, command):
     script_content = f"{sbatch_directives}\n{command}"
-    print(f"submitting sbatch script: \n{script_content}")
+    print(f"submitting sbatch script: \n{script_content}\n")
     try:
         result = subprocess.run(['sbatch'], input=script_content, capture_output=True, text=True, check=True)
         print(result.stdout)
@@ -112,23 +114,24 @@ if __name__ == "__main__":
     # Specify the SLURM script content
     sbatch_script = f"""#!/bin/bash
 #SBATCH -J {taskname}
-#SBATCH -p gpu 
+#SBATCH -p gpu
 #SBATCH -A general 
 #SBATCH --nodes=1 
 #SBATCH --ntasks-per-node=1
 #SBATCH --gpus-per-node=1
-#SBATCH --time=04:00:00
+#SBATCH --time=10:00:00
 #SBATCH --mem=32G
 """
 
-for i, pycode in enumerate(codes):
-    command = commands[i]
+    for i, pycode in enumerate(codes):
+        command = commands[i]
 
-    # Submit the job
-    job_id = submit_job(sbatch_script, pycode, command)
+        # Submit the job
+        job_id = submit_job(sbatch_script, pycode, command)
 
-    # Check if job submission was successful
-    if job_id is not None:
-        # Do further processing or monitoring of the job
-        # For example, you can store the job ID and other information for later use
-        print("Job submission successful!")
+        # Check if job submission was successful
+        if job_id is not None:
+            # Do further processing or monitoring of the job
+            # For example, you can store the job ID and other information for later use
+            print("Job submission successful!")
+

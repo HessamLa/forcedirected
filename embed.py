@@ -34,7 +34,7 @@ parser.add_argument('--do-random-selection', action='store_true',
 
 parser.add_argument('--random-select-rate', type=float, default=0.0, 
                     help='rate of random selection (default: 0.0)')
-parser.add_argument('--description', type=str, default="", 
+parser.add_argument('--description', type=str, default="", nargs='+', 
                     help='description, used for experimentation logging')
 args, unknown = parser.parse_known_args()
 
@@ -43,6 +43,9 @@ if(args.outputdir is None):
     args.outputdir = f"./embeddings-tmp/{args.dataset}"
 if(args.logfilepath is None):
     args.logfilepath = f"./{args.outputdir}/{args.dataset}-log.txt"
+
+# Combine the description words into a single string
+args.description = ' '.join(args.description)
 
 print("\nArguments:")
 for key, value in vars(args).items():
@@ -250,8 +253,6 @@ def embed_forcedirected(Z, degrees, hops):
     if os.path.exists(outputfilename):
         os.remove(outputfilename)
     
-    logfile = open(args.logfilepath, "w")
-
     # TORCH DEVICES
     device_str = "cuda" if torch.cuda.is_available() else "cpu"
     # device_str = "cpu"
@@ -265,10 +266,9 @@ def embed_forcedirected(Z, degrees, hops):
         logstr+=f"{key:20}: {value}\n"
     
     logstr+=f"\ndevice type: {device_str}\n"
-    logfile.write(logstr)
-    logfile.flush()
-    
-    
+    with open(args.logfilepath, "w") as f: # write to the logfile
+        f.write(logstr)
+
     alpha = args.alpha
 
     # standard deviation of noise = f(t)*std_0 + base_std0, 
@@ -457,27 +457,31 @@ def embed_forcedirected(Z, degrees, hops):
         print(f"{durations.elapsed():6.1f}| {durations.t_pairwisediff/_n:8.3f} {durations.t_pairwisenorm/_n:8.3f} {durations.t_Fa/_n:8.3f} {durations.t_Fr/_n:8.3f} ")
         
         print(logstr)
-        logfile.write(logstr)
-        logfile.flush()
+        with open(args.logfilepath, "a") as f: # write to the logfile
+            f.write(logstr)
 
         # save the data
         if((_iter)%10==9):
             # save the file
-            # with open(outputfilename, 'wb') as f:
-            #     np.save(f, Z.cpu().numpy())
-            with open(outputfilename, "ab") as f:
+            with open(outputfilename, "ab") as f: # append embeddings
                 pickle.dump(Z.cpu().numpy(), f)
             # save stats
             # Save DataFrame to a CSV file
-            statsdf.to_csv(f"{args.outputdir}/{args.statsfilename}", index=False)
-            
-    logfile.close()
+            temp_filename = f"{args.outputdir}/{args.statsfilename}.tmp"
+            statsdf.to_csv(temp_filename, index=False)
+            # Rename the temporary file to the final filename
+            final_filename = f"{args.outputdir}/{args.statsfilename}"
+            os.rename(temp_filename, final_filename)
 
-    with open(outputfilename, "ab") as f:
+    with open(outputfilename, "ab") as f: # append the last embedding
         pickle.dump(Z.cpu().numpy(), f)
-    # with open(outputfilename, 'wb') as f:
-    #     np.save(f, Z.cpu().numpy())
-    statsdf.to_csv(f"{args.outputdir}/{args.statsfilename}", index=False)
+    
+    temp_filename = f"{args.outputdir}/{args.statsfilename}.tmp"
+    statsdf.to_csv(temp_filename, index=False)
+    
+    # Rename the temporary file to the final filename
+    final_filename = f"{args.outputdir}/{args.statsfilename}"
+    os.rename(temp_filename, final_filename)
 
     return Z
 
