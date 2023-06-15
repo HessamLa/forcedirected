@@ -26,7 +26,7 @@ def convert_networkit_to_pyg(graph):
 
     return data
 
-def load_graph_networkx(datasetname="cora", rootpath='./datasets'):
+def load_graph_networkx(datasetname="cora", rootpath='./datasets', node_attrs=["x"]):
     rootpath = os.path.abspath(rootpath)
     print(rootpath)
     undirected=True
@@ -67,7 +67,7 @@ def load_graph_networkx(datasetname="cora", rootpath='./datasets'):
     print(f'Contains self-loops: {data.contains_self_loops()}')
     print(f'Is undirected: {data.is_undirected()}')
 
-    Gx = to_networkx(data, to_undirected=undirected)
+    Gx = to_networkx(data, to_undirected=undirected, node_attrs=["x"])
     print(Gx.number_of_nodes())
     
     return (Gx, data)
