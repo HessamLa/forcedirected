@@ -2,6 +2,7 @@
 # get arguments
 import argparse
 from typing import Any
+from pprint import pprint
 
 DEFAULT_DATASET='cora'
 # DEFAULT_DATASET='ego-facebook'
@@ -11,8 +12,10 @@ parser.add_argument('--dataset', type=str, default=DEFAULT_DATASET, choices=DATA
                     help='name of the dataset (default: cora)')
 parser.add_argument('--outputdir', type=str, default=None, 
                     help=f"output directory (default: ./embeddings-tmp/{DEFAULT_DATASET})")
-parser.add_argument('--outputfilename', type=str, default='embed-hist.pkl', 
-                    help='filename to save the final result (default: mbd.npy)')
+parser.add_argument('--outputfilename', type=str, default='embed.npy', 
+                    help='filename to save the final result (default: embed.npy). Use numpy.load() to open.')
+parser.add_argument('--historyfilename', type=str, default='embed-hist.pkl', 
+                    help='filename to store s sequence of results from each iteration (default: embed-hist.pkl). Use pickle loader to open.')
 parser.add_argument('--statsfilename', type=str, default='stats.csv', 
                     help='filename to save the embedding stats history (default: stats.csv)')
 parser.add_argument('--logfilepath', type=str, default=None, 
@@ -29,15 +32,23 @@ parser.add_argument('--base_std0', type=float, default=0.005,
                     help='base standard deviation of noise (default: 0.005), noise_std = f(t)*std0 + base_std0. f(t) converges to 0.')
 parser.add_argument('--add-noise', action='store_true', 
                     help='enable noise')
-parser.add_argument('--do-random-selection', action='store_true', 
-                    help='Enable random selection (default: True)')
 
-parser.add_argument('--random-select-rate', type=float, default=0.0, 
-                    help='rate of random selection (default: 0.0)')
+parser.add_argument('--random-drop', default='steady-rate', type=str,
+                    choices=['steady-rate', 'exponential-rate', 'linear-rate', 'none', ''], 
+                    help='Random drop mode')
+parser.add_argument('--random-drop-params', default=[0.5], type=float, nargs='+',
+                    help='Random drop parameter values')
+
 parser.add_argument('--description', type=str, default="", nargs='+', 
                     help='description, used for experimentation logging')
 args, unknown = parser.parse_known_args()
 
+if(len(unknown)>0):
+    print("====================================")
+    print("THERE ARE UNKNOWN ARGUMENTS PASSED:")
+    pprint(unknown)
+    print("====================================")
+    
 # use default parameter values if required
 if(args.outputdir is None):
     args.outputdir = f"./embeddings-tmp/{args.dataset}"
@@ -143,36 +154,6 @@ someval = 7
 durations.testval += someval
 print(durations.testval)  # Output: 7
 
-someval = 3.5
-durations.testval += someval
-print(durations.testval)  # Output: 10.5
-
-
-durations.testval = "high"
-print(durations.testval)  # Output: 10.5
-durations.testval += "high"
-print(durations.testval)  # Output: 10.5
-
-durations.testval = None
-print(durations.testval)  # Output: 10.5
-
-durations.x += 18
-print(durations.x, type(durations.x))
-durations.x += 1.
-print(durations.x, type(durations.x))
-print(f"{durations.x}")
-
-durations.start = time.time()
-durations.elapsed = lambda: time.time() - durations.start
-print(durations.elapsed())
-# someval = "hello"
-# durations.testval += someval
-# print(durations.testval)  # Output: "10.5hello"
-
-
-# someval = SomeOtherClass()
-# durations.testval += someval
-# print(durations.testval)  # Output: error, += does not support 'int' and 'SomeOtherClass' objects
 # %%
 ############################################################################
 # Load data
@@ -237,6 +218,108 @@ def make_embedding_stats(Nt, hops, maxhops):
     # print(f"inf {Nt[mask].mean():10.3f} {Nt[mask].std():10.3f} {len(Nt[mask])/2:8.0f}")
 
 import nodeforce as nf
+
+
+## random drop class
+class RandomDrop:
+    def __init__(self, drop_mode:str, drop_params) -> None:
+        self.drop_mode = drop_mode
+        self.drop_params = drop_params
+        self.t = 0
+        self._indices = None
+        self._initialize()
+        pass
+
+    def __call__(self, X, shape=None, t=None):
+        self.drop(X, shape, t)
+        pass
+    
+    def drop(self, X, shape=None, t=None, use_latest=False):
+        if(use_latest): # don't generate new indieces
+            X[self._indices] = 0
+            return X    
+        if(t is None):
+            t = self.t
+            self.t += 1
+        if(shape is None):
+            shape = X.shape
+        self._indices = self.generate_indices(shape, t)
+        X[self._indices] = 0
+        return X
+    
+    @property
+    def enabled(self):
+        return (self.drop_mode not in ['', 'none', 'None'])
+
+    @property
+    def last_indices(self):
+        self._indices
+    
+    def _initialize(self):
+        drop_params = self.drop_params
+        if(self.drop_mode == 'steady-rate'):
+            self.drop_rate = 0.5 # default value
+            if(len(drop_params)>0):
+                self.drop_rate = drop_params[0]
+            self.generate_indices = lambda shape, *args: torch.rand(shape) > self.drop_rate
+
+        elif(self.drop_mode == 'linear-rate'):
+            self.r_grad = 0.0003 # will end after 3333 iterations
+            self.r_start = 1.0
+            self.r_end = 0.0
+            if(len(drop_params)>0):
+                self.r_grad = drop_params[0]
+            if(len(drop_params)>1):
+                self.r_start = drop_params[1]
+                self.r_end = drop_params[2]
+            
+            self.drop_rate = self.r_start
+            def _dummyfunc(shape, t=0, *args):
+                self.drop_rate = self.r_start - t*self.r_grad
+                if (self.drop_rate < self.r_end): 
+                    self.drop_rate = self.r_end
+                idx = torch.rand(shape) < self.drop_rate
+                return idx
+                
+            self.generate_indices = _dummyfunc
+        
+        elif(self.drop_mode == 'exponential-rate'):
+            self.r_amp = 1.0
+            self.r_k = 1.0                
+            if(len(drop_params)>0):
+                self.r_amp = drop_params[0]
+                self.r_k = drop_params[1]
+            
+            self.drop_rate = self.r_amp
+            def _dummyfunc(shape, t=0, *args):
+                self.drop_rate = self.r_amp * np.exp(-t*self.r_k)
+                idx = torch.rand(shape) < self.drop_rate
+                return idx
+            self.generate_indices = _dummyfunc
+        
+        else: #don't drop any
+            self.generate_indices = lambda shape, *args: torch.zeros(shape, dtype=torch.bool)
+
+random_drop = RandomDrop(drop_mode=args.random_drop, drop_params=args.random_drop_params)
+
+
+def test(
+    # self,
+    train_z: torch.Tensor, train_y: torch.Tensor,
+    test_z: torch.Tensor,  test_y: torch.Tensor,
+    solver: str = 'lbfgs', multi_class: str = 'auto', *args, **kwargs,
+) -> float:
+    r"""Evaluates latent space quality via a logistic regression downstream
+    task."""
+    from sklearn.linear_model import LogisticRegression
+
+    clf = LogisticRegression(solver=solver, multi_class=multi_class, *args,
+                                **kwargs).fit(train_z.detach().cpu().numpy(),
+                                            train_y.detach().cpu().numpy())
+    return clf.score(test_z.detach().cpu().numpy(),
+                     test_y.detach().cpu().numpy())
+
+
 ############################################################################
 # Embed
 ############################################################################
@@ -248,10 +331,12 @@ def embed_forcedirected(Z, degrees, hops):
     abspath = os.path.abspath(args.outputdir)
     os.makedirs(abspath, exist_ok=True)
 
-    outputfilename = f"{args.outputdir}/{args.outputfilename}"
-    # Reset the binary file if it already exists
-    if os.path.exists(outputfilename):
-        os.remove(outputfilename)
+    ofilepath = f"{args.outputdir}/{args.outputfilename}" # the path to store the latest embedding
+    histfilepath = f"{args.outputdir}/{args.historyfilename}" # the path to APPEND the latest embedding
+    # Reset the binary files if any already exists
+    for fpath in [ofilepath, histfilepath]:
+        if os.path.exists(fpath):
+            os.remove(fpath)
     
     # TORCH DEVICES
     device_str = "cuda" if torch.cuda.is_available() else "cpu"
@@ -303,7 +388,7 @@ def embed_forcedirected(Z, degrees, hops):
     
     stderr_change = 0
     max_iterations = args.epochs
-    for _iter in range(max_iterations):
+    for _iter in range(max_iterations): # _iter MUST START FROM 0
         
         logstr = f"iter{_iter:4d} | "
         
@@ -322,13 +407,11 @@ def embed_forcedirected(Z, degrees, hops):
 
         durations.iteration += 1
 
-        t = time.time()
         # randomly select values (on any axis) for change and modification
         random_select = 1 # default is neutral value
-        if(args.do_random_selection):
-            random_select = torch.rand(Z.size())>(_iter/(2*max_iterations))
+        if(random_drop.enabled):
+            random_select = random_drop.generate_indices(Z.shape, _iter)
             random_select = random_select.float().to(device)
-        durations.t_random_select += time.time()-t
 
         # Add noise if enabled. Noise level is diminishing over time. 
         std_noise = 0 # defaults are is neutral values
@@ -363,10 +446,6 @@ def embed_forcedirected(Z, degrees, hops):
         t = time.time()
         Fr = nf.repulsive_force_hops_exp(D, N, unitD, torch.tensor(hops).to(device), k1=10, k2=0.9)
         durations.t_Fr += time.time()-t
-        
-        # print("Fa.device:", Fa.device)
-        # print("Fr.device:", Fr.device)
-        # print("random_select.device:", random_select.device)
         
         t = time.time()
         F = (Fa+Fr)*random_select
@@ -419,7 +498,7 @@ def embed_forcedirected(Z, degrees, hops):
         s['f-all-magnitude'] = s['fa-sum'] + s['fr-sum']
 
         s['std-noise'] = std_noise
-        if(args.do_random_selection):
+        if(random_drop.enabled):
             s['selected-ratio'] = torch.sum(random_select)/torch.numel(random_select)
         else:
             s['selected-ratio'] = 1.0
@@ -462,9 +541,12 @@ def embed_forcedirected(Z, degrees, hops):
 
         # save the data
         if((_iter)%10==9):
-            # save the file
-            with open(outputfilename, "ab") as f: # append embeddings
+            # save embeddings
+            with open(ofilepath, "wb") as f: # save the embedding
+                np.save(Z.cpu().numpy(), f)
+            with open(histfilepath, "ab") as f: # append embeddings
                 pickle.dump(Z.cpu().numpy(), f)
+            
             # save stats
             # Save DataFrame to a CSV file
             temp_filename = f"{args.outputdir}/{args.statsfilename}.tmp"
@@ -473,12 +555,16 @@ def embed_forcedirected(Z, degrees, hops):
             final_filename = f"{args.outputdir}/{args.statsfilename}"
             os.rename(temp_filename, final_filename)
 
-    with open(outputfilename, "ab") as f: # append the last embedding
+    # The last saving round
+    # save embeddings
+    with open(ofilepath, "wb") as f: # save the embedding
+        np.save(Z.cpu().numpy(), f)
+    with open(ofilepath, "ab") as f: # append the last embedding
         pickle.dump(Z.cpu().numpy(), f)
     
+    # save stats
     temp_filename = f"{args.outputdir}/{args.statsfilename}.tmp"
     statsdf.to_csv(temp_filename, index=False)
-    
     # Rename the temporary file to the final filename
     final_filename = f"{args.outputdir}/{args.statsfilename}"
     os.rename(temp_filename, final_filename)
@@ -490,7 +576,7 @@ Z = embed_forcedirected(Z, degrees=degrees, hops=hops)
 exit()
 # %%
 # Open myfile.bin
-with open(outputfilename, "rb") as file:
+with open(ofilepath, "rb") as file:
     while True:
         try:
             arr = pickle.load(file)
