@@ -1,15 +1,14 @@
 # %%
-import torch
-from torch_geometric.data import Data
-from torch_geometric.datasets import Planetoid
-import torch_geometric as pyg
-from torch_geometric.utils import to_networkx, to_networkit, from_networkit
-from torch_geometric.datasets import SNAPDataset
-
 import os
 import numpy as np
 import networkx as nx
 import networkit as nk
+
+import torch
+from torch_geometric.data import Data
+import torch_geometric as pyg
+from torch_geometric.utils import to_networkx, to_networkit, from_networkit
+from torch_geometric.datasets import SNAPDataset
 
 # %%
 def convert_networkit_to_pyg(graph):
@@ -31,8 +30,14 @@ def load_graph_networkx(datasetname="cora", rootpath='./datasets', node_attrs=["
     print(rootpath)
     undirected=True
     if(datasetname == "cora"):
+        from torch_geometric.datasets import Planetoid
         undirected=True
         dataset = Planetoid(root=rootpath, name='Cora')
+        data = dataset[0]
+    elif(datasetname == "corafull"):
+        from torch_geometric.datasets import CoraFull
+        undirected=True
+        dataset = CoraFull(root=rootpath)
         data = dataset[0]
     elif(datasetname == "ego-Facebook" or datasetname == "ego-facebook"):
         undirected=True
@@ -128,7 +133,6 @@ def process_graph_networkx(Gx):
     # print(hops.shape) # nxn matrix
     return (G, A, degrees, hops)
 
-
 import random
 def remove_random_edges(G, ratio):
     G = nk.nxadapter.nx2nk(G)
@@ -161,4 +165,3 @@ def remove_random_edges(G, ratio):
 #     maxhops = max(hops[hops<n+1]) # hops<n+1 to exclude infinity values
 #     hops[hops>maxhops]=maxhops+1
 #     print("max hops:", maxhops)
-

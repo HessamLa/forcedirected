@@ -4,11 +4,14 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 import networkx as nx
-
 # %%
-dataset = 'cora'
+import torch
+# %%
+print('here')
+# %%
 dataset = 'ego-facebook'
-csvpath = f'./embeddings/{dataset}/stats.csv'
+dataset = 'cora'
+csvpath = f'./embeddings-drop-test/{dataset}--none/stats.csv'
 df = pd.read_csv(csvpath)
 print(df.head())
 
@@ -42,22 +45,31 @@ ax.set_ylim(bottom=0.0)
 # Show the plot
 plt.show()
 
+def reduce2dim (Z, dim, method='PCA'):
+    if(method.upper() == 'PCA'):
+        pca = PCA(n_components=dim)
+        return pca.fit_transform(Z)
+    else:
+        print(method, 'IS UNKNOWN')
+        raise
+
+      
 # %%
 from sklearn.decomposition import PCA
-def draw_2d(G, Z, nodes, degrees, figsize=(20,12), sizeratio=None):
+from utilities import load_graph_networkx, process_graph_networkx
+# %%
+def drawgraph_2d(G, Z, nodes, degrees, figsize=(20,12), sizeratio=None, title=''):
     plt.close("all")
     if(sizeratio is None):
         sizeratio = (figsize[0]//10)**2
-    pca = PCA(n_components=2)
-    x_pca = pca.fit_transform(Z)
-    x_pca = pd.DataFrame(x_pca)
+
+    X = reduce2dim(Z, 2)
+
+    plt.scatter(X[:, 0], X[:, 1], s=np.log(degrees+1))
     
-    plt.scatter(x_pca.loc[:, 0], x_pca.loc[:, 1], s=np.log(degrees+1))
+    nodes = list(G.nodes)
+    pos = {nodes[i]:[X[i, 0], X[i, 1]] for i in range(len(nodes))}
     
-    # drawGraph_forcedirected(G, x_pca.to_numpy(), Fa=Fa, Fr=Fr, with_labels=False)
-    # drawGraph_forcedirected(G, x_pca.to_numpy(), with_labels=False)
-    
-    pos = {nodes[i]:[x_pca.loc[i, 0], x_pca.loc[i, 1]] for i in range(len(nodes))}
     # n_color = np.asarray([degrees[n] for n in nodes])
     n_color = np.asarray(degrees)
     n_size = np.power(n_color,0.8)*sizeratio
@@ -75,17 +87,45 @@ def draw_2d(G, Z, nodes, degrees, figsize=(20,12), sizeratio=None):
     import matplotlib.colors as mcolors
     sc.set_norm(mcolors.LogNorm())
     fig.colorbar(sc)
+    fig.suptitle(title, fontsize=12*sizeratio)
+    return fig
 
 from utilities import load_graph_networkx, process_graph_networkx
 
-Gx, data = load_graph_networkx(datasetname=dataset, rootpath='../datasets')
+Gx, data = load_graph_networkx(datasetname=dataset, rootpath='./datasets')
+print('loaded graph')
 G, A, degrees, hops = process_graph_networkx(Gx)
+print('processed graph')
 
-embedpath = f'./embeddings/{dataset}/mbd.npy'
+embedpath = f'./embeddings/{dataset}/embed.npy'
+noise,droprate = '','none'
+# noise = 'noise'
+droprate = 'steady-rate'
+embedpath = f'./embeddings-drop-test/{dataset}-{noise}-{droprate}/embed.npy'
 G, A, degrees, hops = process_graph_networkx(Gx)
 Z = np.load(embedpath)
-draw_2d(Gx, Z, list(Gx.nodes), degrees)
+print(Z.shape)
+drawgraph_2d(Gx, Z, list(Gx.nodes), degrees, title=f'NodeForce {dataset}-{noise}-{droprate}')
+plt.savefig(f'./images/NodeForce-{dataset}-{noise}-{droprate}.png')
 
+# %%
+embedpath = f'./embeddings/{dataset}/n2v/embed.npy'
+G, A, degrees, hops = process_graph_networkx(Gx)
+
+Z = np.load(embedpath)
+print(Z.shape)
+drawgraph_2d(Gx, Z, list(Gx.nodes), degrees, title=f'Node2Vec {dataset}')
+plt.savefig(f'./images/Node2Vec-{dataset}.png')
+
+# %%
+# # get embedding stats
+# import torch
+# from nodeforce import pairwise_difference
+# from utilities import make_embedding_stats
+# N = pairwise_difference(torch.tensor(Z))
+# n = Z.shape[0]
+# s = make_embedding_stats(N, hops, max(hops[hops<n+1]))
+# print(s)
 # %% draw 3d
 from matplotlib.animation import FuncAnimation
 pca = PCA(n_components=3)
@@ -130,10 +170,15 @@ plt.show()
 dataset, noisetag, selecttag = ('cora', '', '')
 
 noisetag = 'noise'
-selecttag = 'rselect'
+# selecttag = 'rselect'
 dataset = 'ego-facebook'
 
-csvpath = f'./embeddings-test/{dataset}-{noisetag}-{selecttag}/stats.csv'
+csvpath = f'./embeddings-carb/{dataset}-{noisetag}-{selecttag}/stats.csv'
+
+noisetag = 'noise'
+droptag = 'steady-rate'
+droptag = 'none'
+csvpath = f'./embeddings-drop-test/{dataset}-{noisetag}-{droptag}/stats.csv'
 
 df = pd.read_csv(csvpath)
 # print(df.head())
@@ -156,3 +201,4 @@ df[['relocs-std', 'wrelocs-std']][fromidx:toidx].plot(title=f"std relocs {csvpat
 
 df[hopsmean][fromidx:toidx].plot(title=f"mean hops {csvpath}")
 df[hopsstd][fromidx:toidx].plot(title=f"std hops {csvpath}")
+# %%

@@ -6,7 +6,7 @@ from pprint import pprint
 
 DEFAULT_DATASET='cora'
 # DEFAULT_DATASET='ego-facebook'
-DATASET_CHOICES=['cora', 'citeseer', 'pubmed', 'ego-facebook']
+DATASET_CHOICES=['cora', 'citeseer', 'pubmed', 'ego-facebook', 'corafull']
 parser = argparse.ArgumentParser(description='Process command line arguments.')
 parser.add_argument('--dataset', type=str, default=DEFAULT_DATASET, choices=DATASET_CHOICES, 
                     help='name of the dataset (default: cora)')
@@ -38,7 +38,6 @@ parser.add_argument('--random-drop', default='steady-rate', type=str,
                     help='Random drop mode')
 parser.add_argument('--random-drop-params', default=[0.5], type=float, nargs='+',
                     help='Random drop parameter values')
-
 parser.add_argument('--description', type=str, default="", nargs='+', 
                     help='description, used for experimentation logging')
 args, unknown = parser.parse_known_args()
@@ -543,7 +542,7 @@ def embed_forcedirected(Z, degrees, hops):
         if((_iter)%10==9):
             # save embeddings
             with open(ofilepath, "wb") as f: # save the embedding
-                np.save(Z.cpu().numpy(), f)
+                np.save(f, Z.cpu().numpy())
             with open(histfilepath, "ab") as f: # append embeddings
                 pickle.dump(Z.cpu().numpy(), f)
             
@@ -558,7 +557,7 @@ def embed_forcedirected(Z, degrees, hops):
     # The last saving round
     # save embeddings
     with open(ofilepath, "wb") as f: # save the embedding
-        np.save(Z.cpu().numpy(), f)
+        np.save(f, Z.cpu().numpy())
     with open(ofilepath, "ab") as f: # append the last embedding
         pickle.dump(Z.cpu().numpy(), f)
     

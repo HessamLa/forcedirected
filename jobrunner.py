@@ -1,7 +1,7 @@
 # %%
 import subprocess
 import sys
-
+import pathlib
 # %%
 # import subprocess
 
@@ -35,22 +35,27 @@ import subprocess
 
 codes = []
 commands = []
-root_out='embeddings-bigred'
-root_out='embeddings-carb'
-for dsname in ['cora', 'ego-facebook']:
+# root_out='embeddings-bigred'
+root_out='embeddings-drop-test'
+pathlib.Path(root_out).mkdir(parents=True, exist_ok=True)
+
+# for dsname in ['cora', 'ego-facebook']:
+for dsname in ['corafull']:
     for add_noise in ['--add-noise ', '']:
-        for do_random_selection in ['--do-random-selection ', '']:
+        # for do_random_selection in ['--do-random-selection ', '']:
+        for drop_mode in ['steady-rate', 'none']:
             noisetag = "noise" if len(add_noise)>0 else ""
-            rselecttag = "rselect" if len(do_random_selection)>0 else ""
+            
 
             # dsname="cora"
             # add_noise = "--add-noise "
             # do_random_selection = "--do-random-selection "
             taskname="embed"
             pycode = f" embed.py --dataset={dsname} "
-            pycode+= f" --outputdir={root_out}/{dsname}-{noisetag}-{rselecttag}"
-            pycode+= f" {add_noise} {do_random_selection}"
-            pycode+= f" --description=\"dataset:{dsname} {noisetag} {rselecttag}\""
+            pycode+= f" --outputdir={root_out}/{dsname}-{noisetag}-{drop_mode}"
+            pycode+= f" {add_noise}"
+            pycode+= f" --random-drop {drop_mode}"
+            pycode+= f" --description=\"dataset:{dsname} {noisetag} random-drop:{drop_mode}\""
             
             outfile = f"{root_out}/{taskname}-{dsname}_%j.txt" 
             errfile = f"{root_out}/{taskname}-{dsname}_%j.err"

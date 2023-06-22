@@ -1,37 +1,91 @@
 # %%
 # %reload_ext autoreload
 # %autoreload 2
-import networkit as nk
-import matplotlib.pyplot as plt
-import math
-import numpy as np
+import argparse
+from pprint import pprint
+from typing import Any
+from utilities import ReportLog
+DEFAULT_DATASET='cora'
+DATASET_CHOICES=['cora', 'citeseer', 'pubmed', 'ego-facebook', 'corafull']
+DEFAULT_METHOD='nodeforce'
+METHOD_CHOICES=['nodeforce', 'n2v']
+# DEFAULT_DATASET='ego-facebook'
+parser = argparse.ArgumentParser(description='Process command line arguments.')
+parser.add_argument('--dataset', type=str, default=DEFAULT_DATASET, choices=DATASET_CHOICES, 
+                    help='name of the dataset (default: cora)')
+parser.add_argument('--method', type=str, default=DEFAULT_METHOD, choices=METHOD_CHOICES,
+                    help=f"embedding method (default: nodeforce)")
+parser.add_argument('--embeddingpath', type=str, default=None, 
+                    help='path to the embedding file (default: ./embeddings/{dataset}/{method}/embed.npy)')
+parser.add_argument('--outdir', type=str, default='./linkprediction', 
+                    help='path to the output directory (default: ./linkprediction)')
+parser.add_argument('--logfilepath', type=str, default=None, 
+                    help='path to the log file (default: {outdir}/lp-{dataset}-{method}.txt)')
+parser.add_argument('--epochs', type=int, default=1000, 
+                    help='number of training epochs (default: 1000)')
+parser.add_argument('--description', type=str, default="", nargs='+', 
+                    help='description, used for experimentation logging')
+args, unknown = parser.parse_known_args()
+# use default parameter values if required
+if(args.embeddingpath is None):
+    args.embeddingpath = f"./embeddings/{args.dataset}/{args.method}/embed.npy"
+if(args.logfilepath is None):
+    args.logfilepath = f"{args.outdir}/lp-{args.dataset}-{args.method}-log.txt"
 
-import networkx as nx
+# Combine the description words into a single string
+args.description = ' '.join(args.description)
+
+log = ReportLog(args.logfilepath)
+if(len(unknown)>0):
+    log.print("====================================")
+    log.print("THERE ARE UNKNOWN ARGUMENTS PASSED:")
+    log.pprint(unknown)
+    log.print("====================================")
+   
+log.print("\nArguments:")
+for key, value in vars(args).items():
+    log.print(f"{key:20}: {value}")
+log.print("")
+
+# %%
+
+
+# %%
+
+import matplotlib.pyplot as plt
+import numpy as np
 import sklearn as sk
 import pandas as pd
+from sklearn.metrics.pairwise import euclidean_distances
+
+import networkit as nk
+import networkx as nx
 
 import torch
 from utils import drawGraph_forcedirected
-from sklearn.metrics.pairwise import euclidean_distances
 # %%
 ############################################################################
 # Load data
 ############################################################################
 # Get the Cora dataset
-datasetname = 'cora'
-datasetname = 'ego-facebook'
-rootpath = '../datasets'
-embeddingpath = f"embeddings/{datasetname}/mbd.npy"
+# datasetname = 'corafull'
+# datasetname = 'cora'
+# datasetname = 'ego-facebook'
+# rootpath = './datasets'
+# emethod='n2v'
+# embeddingpath = f"./embeddings/{datasetname}/{emethod}/embed.npy"
 
 from utilities import load_graph_networkx, process_graph_networkx
 
-Gx, data = load_graph_networkx(datasetname=datasetname, rootpath=rootpath)
+Gx, data = load_graph_networkx(datasetname=args.dataset, rootpath='./datasets')
 G, A, degrees, hops = process_graph_networkx(Gx)
 n = A.shape[0]
 # find max hops
 hops[hops>n+1]=n+1
 maxhops = max(hops[hops<n+1])
 print("max hops:", maxhops)
+
+
 
 
 # %%
@@ -56,7 +110,8 @@ print(len(components))
 ############################################################################
 # LOAD EMBEDDINGS
 ############################################################################
-Z = np.load(embeddingpath)
+log.print("load embedding from", args.embeddingpath)
+Z = np.load(args.embeddingpath)
 n,d = Z.shape
 
 
@@ -184,6 +239,7 @@ optimizer = optim.Adam(model.parameters(), lr=0.001)
 criterion = nn.BCELoss()
 
 
+
 # %%%%%%%
 # TESTSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS
 from sklearn.metrics import roc_auc_score, f1_score, roc_curve
@@ -197,7 +253,7 @@ train_losses = []
 val_losses = []
 val_auc_values = []
 
-epochs = 1000
+epochs = args.epochs
 for epoch in range(epochs):
     # Training
     model.train()
@@ -235,7 +291,8 @@ for epoch in range(epochs):
     train_losses.append(train_loss)
     
     # Print progress
-    print(f"Epoch [{epoch+1}/{epochs}], Training Loss: {train_loss:.4f}")
+    log.print(f"Epoch [{epoch+1}/{epochs}], Training Loss: {train_loss:.4f}")
+    # log(f"Epoch [{epoch+1}/{epochs}], Training Loss: {train_loss:.4f}")
 
     # Validation
     model.eval()
@@ -281,9 +338,9 @@ for epoch in range(epochs):
     val_auc_values.append(val_auc)
 
     # Print validation metrics
-    print(f"Validation Loss: {val_loss:.4f}, Validation Accuracy: {val_accuracy:.4f}")
-    print(f"Validation AUC: {val_auc:.4f}, Validation F1 Score: {val_f1:.4f}")
-
+    log.print(f"Validation Loss: {val_loss:.4f}, Validation Accuracy: {val_accuracy:.4f}")
+    log.print(f"Validation AUC: {val_auc:.4f}, Validation F1 Score: {val_f1:.4f}")
+    
 
 # Testing
 model.eval()
@@ -325,8 +382,8 @@ test_auc = roc_auc_score(test_targets, test_outputs)
 test_f1 = f1_score(test_targets, np.round(test_outputs))
 
 # Print test metrics
-print(f"Test Loss: {test_loss:.4f}, Test Accuracy: {test_accuracy:.4f}")
-print(f"Test AUC: {test_auc:.4f}, Test F1 Score: {test_f1:.4f}")
+log.print(f"Test Loss: {test_loss:.4f}, Test Accuracy: {test_accuracy:.4f}")
+log.print(f"Test AUC: {test_auc:.4f}, Test F1 Score: {test_f1:.4f}")
 
 # %%
 
@@ -337,10 +394,10 @@ plt.plot(range(1, epochs + 1), train_losses, label='Training Loss')
 plt.plot(range(1, epochs + 1), val_losses, label='Validation Loss')
 plt.xlabel('Epoch')
 plt.ylabel('Loss')
-plt.title('Link Prediction Training and Validation Loss')
+plt.title(f'Link Prediction Training and Validation Loss \n(dataset:{args.dataset} method:{args.method})')
 plt.legend()
-plt.savefig(f"{datasetname}-lp-loss-rate.pdf")
-plt.savefig(f"{datasetname}-lp-loss-rate.png")
+plt.savefig(f"./images/{args.dataset}-{args.method}-lp-loss-rate.pdf")
+plt.savefig(f"./images/{args.dataset}-{args.method}-lp-loss-rate.png")
 plt.show()
 
 # AUC curve plot
@@ -349,9 +406,9 @@ plt.figure()
 plt.plot(fpr, tpr)
 plt.xlabel('False Positive Rate')
 plt.ylabel('True Positive Rate')
-plt.title('Link Prediction ROC Curve')
-plt.savefig(f"{datasetname}-lp-roc-curve.pdf")
-plt.savefig(f"{datasetname}-lp-roc-curve.png")
+plt.title(f'Link Prediction ROC Curve \n(dataset:{args.dataset} method:{args.method})')
+plt.savefig(f"./images/{args.dataset}-{args.method}-lp-roc-curve.pdf")
+plt.savefig(f"./images/{args.dataset}-{args.method}-lp-roc-curve.png")
 plt.show()
 
 # %%
@@ -365,245 +422,3 @@ if __name__ == "__main__":
     exit()
 ############################################################
 ############################################################
-# %%
-############################################################
-
-
-# %%
-
-# load the saved points
-import nodeforce as nf
-# %%
-# points = np.load("temp-points_.npy")
-points = np.load("embeddings2_.npy")
-# Calculate forces
-def verify_random_points(points):
-    distances = np.linalg.norm(points, axis=1)
-    
-    # Plotting histogram
-    plt.hist(distances, bins=20)
-    plt.xlabel('Distance from Origin')
-    plt.ylabel('Frequency')
-    plt.title('Distribution of Distance from Origin')
-    plt.show()
-verify_random_points(points)
-n,d = points.shape
-print(f"A matrix of shape {points.shape} where each row corresponds to embedding of a node in a {d}-dimensional space.")
-
-D = nf.pairwise_difference(torch.Tensor(points))
-N = torch.norm(D, dim=-1)
-
-_hops = hops.copy()
-print(hops.shape)
-
-print(D.min())
-print(torch.mean(N), torch.std(N))
-print(_hops.shape)
-print(_hops[0,1])
-
-print(N.size(), hops.shape)
-ht = _hops[_hops<=maxhops]
-Nt = N.numpy()
-print(Nt.shape, ht.shape)
-for l in range(1, int(ht.max()+1)):
-    mask = _hops==l
-    print(f"{l:3d} {Nt[mask].mean():10.3f} {Nt[mask].std():10.3f} {len(Nt[mask])/2:8.0f}")
-# disconnected components
-mask = _hops>20
-print(f"inf {Nt[mask].mean():10.3f} {Nt[mask].std():10.3f} {len(Nt[mask])/2:8.0f}")
-    
-mask = torch.triu(torch.ones_like(N), diagonal=1)
-print(torch.min(N[mask.bool()]))
-
-# %%
-Z = points.copy()
-plt.close("all")
-# %%
-v = 0
-nv = cc.componentOfNode(v)
-print(nv)
-print(cc.getComponents()[0])
-idx = A==1
-print(A[idx])
-
-
-# %%
-from sklearn.decomposition import PCA
-def draw_2d(G, Z, nodes, degrees, figsize=(20,12), sizeratio=None):
-    plt.close("all")
-    if(sizeratio is None):
-        sizeratio = (figsize[0]//10)**2
-    pca = PCA(n_components=2)
-    x_pca = pca.fit_transform(Z)
-    x_pca = pd.DataFrame(x_pca)
-    
-    plt.scatter(x_pca.loc[:, 0], x_pca.loc[:, 1], s=np.log(degrees+1))
-    
-    # drawGraph_forcedirected(G, x_pca.to_numpy(), Fa=Fa, Fr=Fr, with_labels=False)
-    # drawGraph_forcedirected(G, x_pca.to_numpy(), with_labels=False)
-    
-    pos = {nodes[i]:[x_pca.loc[i, 0], x_pca.loc[i, 1]] for i in range(len(nodes))}
-    # n_color = np.asarray([degrees[n] for n in nodes])
-    n_color = np.asarray(degrees)
-    n_size = n_color*sizeratio
-    
-    fig = plt.figure(figsize=figsize)
-    nx.draw_networkx(G, pos=pos, with_labels=False, 
-                    node_size=sizeratio, width=0.05*sizeratio)
-
-
-    sc = nx.draw_networkx_nodes(G, pos=pos, nodelist=nodes, node_color=n_color, cmap='viridis',
-                    # with_labels=False, 
-                    node_size=n_color*sizeratio)
-    # use a log-norm, do not see how to pass this through nx API
-    # just set it after-the-fact
-    import matplotlib.colors as mcolors
-    sc.set_norm(mcolors.LogNorm())
-    fig.colorbar(sc)
-
-draw_2d(Gx, Z, list(Gx.nodes), degrees)
-# %%
-#Draw
-from sklearn.decomposition import PCA
-pca = PCA(n_components=2)
-x_pca = pca.fit_transform(Z)
-x_pca = pd.DataFrame(x_pca)
-x_pca.head()  
-
-# print(list(x_pca.columns))
-# %% draw 2d
-
-pca = PCA(n_components=2)
-x_pca = pca.fit_transform(Z)
-x_pca = pd.DataFrame(x_pca)
-draw_2d(Gx, x_pca.to_numpy, list(Gx.nodes), degrees)
-# plt.scatter(x_pca.loc[:, 0], x_pca.loc[:, 1], s=np.log(degrees+1))
-# # plt.scatter(x_pca.loc[:, 0], x_pca.loc[:, 1], s=degrees/10)
-# fig=plt.figure()
-
-# # drawGraph_forcedirected(G, x_pca.to_numpy(), Fa=Fa, Fr=Fr, with_labels=False)
-# # drawGraph_forcedirected(G, x_pca.to_numpy(), with_labels=False)
-# nx.draw_networkx(Gx, x_pca.to_numpy(), with_labels=False, 
-#                  node_size=.01, width=1.)
-
-
-# %%
-# draw the largest component
-cc = nk.components.ConnectedComponents(G)
-cc.run()
-components = cc.getComponents()
-if(len(components)>1):
-    nodes = components[0]
-    for i in range(len(components)):
-        if(len(components[i])>len(nodes)):
-            nodes = components[i]
-    Z0 = Z[nodes,...]
-    Gx0 = Gx.subgraph(nodes)
-    # pos = {nodes[i]:[x_pca.loc[i, 0], x_pca.loc[i, 1]] for i in range(len(nodes))}
-    
-    draw_2d(Gx0, Z0, list(Gx0.nodes), degrees[nodes])
-    
-    
-# %%
-x2 = x_pca.copy()
-x2.loc[:,1] = x2.loc[:,1]*100 # expand along y axis
-drawGraph_forcedirected(G, x2.to_numpy(), with_labels=False)
-
-# %% draw 3d
-pca = PCA(n_components=3)
-x_pca = pca.fit_transform(Z)
-x_pca = pd.DataFrame(x_pca)
-
-# %%
-plotdata = []
-y = data.y.numpy().astype(int)
-for i in np.unique(y):
-    idx = y==i
-    d = (x_pca.loc[idx, 0], x_pca.loc[idx, 1], x_pca.loc[idx, 2], y[idx])
-    plotdata.append(d)
-
-# %%
-# get the 3d data
-class_label = data.y.numpy().astype(int)
-# draw the 3d data
-fig = plt.figure()
-ax = fig.add_subplot(111, projection='3d')
-x1,x2,x3 = (x_pca.loc[:, 0], x_pca.loc[:, 1], x_pca.loc[:, 2])
-y = data.y.numpy().astype(int)
-labels = [f'Class {i}' for i in np.unique(y)]
-scatter = ax.scatter(x1, x2, x3, c=y, cmap='tab10', s=1)
-ax.legend(handles=scatter.legend_elements()[0], labels=labels,
-          loc='upper left', numpoints=1, ncol=4, fontsize=8, bbox_to_anchor=(0, 0))
-plt.show()
-# colors = []
-# for i in np.unique(y):
-#     idx = y==i
-#     scatter = ax.scatter(x1[idx], x2[idx], x3[idx], c=y[idx], cmap='tab10', label=f'Class {i}', s=1)
-# ax.legend()
-
-# ax.grid(True)
-
-# %%
-# Create the figure and 3D subplot
-fig = plt.figure()
-ax = fig.add_subplot(111, projection='3d')
-
-# Create a scatter plot for each class
-scatter_plots = []
-for i, (x1, x2, x3, class_label) in enumerate(plotdata):
-    scatter = ax.scatter(x1, x2, x3, c=class_label, cmap='tab10', label=f'Class {i}', s=1, )
-    scatter_plots.append(scatter)
-# # Set the viewing angles
-
-# ax.view_init(elev=30, azim=45)
-
-# # Set the labels and legend
-# ax.set_xlabel('X')
-# ax.set_ylabel('Y')
-# ax.set_zlabel('Z')
-
-print(np.unique(y))
-# %%
-
-# Set the viewing angles
-ax.view_init(elev=30, azim=45)
-
-# Set the labels and legend
-ax.set_xlabel('X')
-ax.set_ylabel('Y')
-ax.set_zlabel('Z')
-ax.legend()
-
-# Create a checkbox widget to select which classes to show
-class_checkboxes = []
-for i, scatter in enumerate(scatter_plots):
-    class_checkbox = plt.axes([0.02, 0.9 - (i * 0.05), 0.1, 0.03])
-    class_check = plt.Checkbutton(class_checkbox, f'Class {i}', visible=True)
-    class_check.on_clicked(lambda event, scatter=scatter: scatter.set_visible(not scatter.get_visible()))
-    class_checkboxes.append(class_check)
-
-plt.show()
-# %%
-plt.close('all')
-fig = plt.figure()
-idx = data.y.numpy()==1
-ax = fig.add_subplot(projection='3d')
-ax.scatter(x_pca.loc[idx, 0], x_pca.loc[idx, 1], x_pca.loc[idx, 2],
-           c=data.y[idx],
-           s=np.log(degrees[idx]+1)/10)
-# drawGraph_forcedirected(G, x_pca.to_numpy(), Fa, Fr, distance_scale,with_labels=False, draw_attractions=False, draw_repulsions=False)
-
-# dpi = 300  # Specify the DPI value (e.g., 300 for high resolution)
-# output_file = 'high_res_plot.png'  # Specify the output filename and extension
-# fig.savefig(output_file, dpi=dpi)
-
-ax.view_init(elev=30, azim=45)  # First viewing angle
-plt.savefig('3d_plot_1.png')  # Save the plot
-
-ax.view_init(elev=15, azim=-30)  # Second viewing angle
-plt.savefig('3d_plot_2.png')  # Save the plot
-
-ax.view_init(elev=60, azim=120)  # Third viewing angle
-plt.savefig('3d_plot_3.png')  # Save the plot
-
-# %%
