@@ -2,25 +2,25 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from sklearn.decomposition import PCA
 
 import networkx as nx
-# %%
-import torch
-# %%
-print('here')
 # %%
 dataset = 'ego-facebook'
 dataset = 'cora'
 csvpath = f'./embeddings-drop-test/{dataset}--none/stats.csv'
+# csvpath = f'./embeddings/nodeforce/{dataset}/stats.csv'
 df = pd.read_csv(csvpath)
 print(df.head())
 
 meancols = [col for col in df.columns 
             if col.endswith('mean') and 
+            col.startswith('hops') and
             not col.startswith('hopsinf')]
 # print(meancols)
 stdcols = [col for col in df.columns 
            if col.endswith('std') and 
+           col.startswith('hops') and
            not col.startswith('hopsinf')]
 # print(meancols)
 
@@ -55,7 +55,6 @@ def reduce2dim (Z, dim, method='PCA'):
 
       
 # %%
-from sklearn.decomposition import PCA
 from utilities import load_graph_networkx, process_graph_networkx
 # %%
 def drawgraph_2d(G, Z, nodes, degrees, figsize=(20,12), sizeratio=None, title=''):
@@ -108,14 +107,37 @@ print(Z.shape)
 drawgraph_2d(Gx, Z, list(Gx.nodes), degrees, title=f'NodeForce {dataset}-{noise}-{droprate}')
 plt.savefig(f'./images/NodeForce-{dataset}-{noise}-{droprate}.png')
 
-# %%
-embedpath = f'./embeddings/{dataset}/n2v/embed.npy'
-G, A, degrees, hops = process_graph_networkx(Gx)
 
-Z = np.load(embedpath)
-print(Z.shape)
-drawgraph_2d(Gx, Z, list(Gx.nodes), degrees, title=f'Node2Vec {dataset}')
-plt.savefig(f'./images/Node2Vec-{dataset}.png')
+# %%
+Gx, data = load_graph_networkx(datasetname='corafull', rootpath='./datasets')
+nx.write_edgelist(Gx, path='./datasets/corafull/corafull.edgelist')
+nx.write_adjlist(Gx, path='./datasets/corafull/corafull.adjlist')
+# %%
+method='node2vec'
+method='nodeforce'
+method='deepwalk'
+dataset='ego-facebook'
+for dataset in ['cora', 'ego-facebook']:
+    try:
+        Gx, data = load_graph_networkx(datasetname=dataset, rootpath='./datasets')
+        print('loaded graph')
+    except:
+        print('faile loading', dataset)
+        G, A, degrees, hops = process_graph_networkx(Gx)
+        print('processed graph')
+        continue
+    G, A, degrees, hops = process_graph_networkx(Gx)
+    for method in ['node2vec', 'nodeforce', 'deepwalk']:
+        try:
+            embedpath = f'./embeddings/{method}/{dataset}/embed.npy'
+            Z = np.load(embedpath)
+            # print(Z.shape)
+        except:
+            print(f'faile loading embedding for {dataset} with {method} method')
+            continue
+        drawgraph_2d(Gx, Z, list(Gx.nodes), degrees, title=f'{method} {dataset}')
+        plt.tight_layout()
+        plt.savefig(f'./images/2d-{dataset}-{method}.png')
 
 # %%
 # # get embedding stats

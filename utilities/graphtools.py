@@ -29,10 +29,15 @@ def load_graph_networkx(datasetname="cora", rootpath='./datasets', node_attrs=["
     rootpath = os.path.abspath(rootpath)
     print(rootpath)
     undirected=True
-    if(datasetname == "cora"):
+    if(datasetname in ['cora', 'citeseer', 'pubmed']):
+        names = dict(
+                    zip(['cora', 'citeseer', 'pubmed'], 
+                        ['Cora', 'CiteSeer', 'PubMed'])
+                    )
+
         from torch_geometric.datasets import Planetoid
         undirected=True
-        dataset = Planetoid(root=rootpath, name='Cora')
+        dataset = Planetoid(root=rootpath, name=names[datasetname])
         data = dataset[0]
     elif(datasetname == "corafull"):
         from torch_geometric.datasets import CoraFull
