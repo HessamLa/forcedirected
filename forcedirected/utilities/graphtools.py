@@ -94,8 +94,8 @@ hops: hops distance matrix in numpy format
 
 """
 def process_graph_networkx(Gx):
-    print("\nProcess Graph")
-    print('======================')
+    # print("\nProcess Graph")
+    # print('======================')
     # ccgenerator = nx.connected_components(Gx)
     # cclist = [c for c in ccgenerator]
     # print("\nnumber of components ", len(cclist))
@@ -106,10 +106,11 @@ def process_graph_networkx(Gx):
     # Gt = to_networkit(data, directed=False) # this doesn't work
     # networkit is better that networkx for finding hops count
     G = nk.nxadapter.nx2nk(Gx)
-    print("number of nodes and edges:", G.numberOfNodes(), G.numberOfEdges())
-    cc = nk.components.StronglyConnectedComponents(G)
-    cc.run()
-    print("number of components ", cc.numberOfComponents())
+    # print("number of nodes and edges:", G.numberOfNodes(), G.numberOfEdges())
+
+    # cc = nk.components.StronglyConnectedComponents(G)
+    # cc.run()
+    # print("number of connected components of the graph:", cc.numberOfComponents())
 
     # edge_index = data.edge_index.numpy()
     # # print(edge_index.shape)
@@ -129,18 +130,15 @@ def process_graph_networkx(Gx):
     n = G.numberOfNodes()
     # node degrees
     degrees = np.array([G.degree(u) for u in G.iterNodes()])
-
-    # get distance between all pairs. How about this one
+    print(f'networkit degrees mean: {degrees.mean():.3f}' )
+    # get distance between all pairs.
     asps = nk.distance.APSP(G)
     asps.run()
     # all pair hops distance
-
     hops = asps.getDistances(asarray=True)
-    if hops.max()<2**8:
-        hops = hops.astype(np.uint8)
-    elif hops.max()<2**16:
-        hops = hops.astype(np.uint16)
-    # print(hops.shape) # nxn matrix
+    print(f'networkit hops mean: {hops[hops<=n].mean():.3f}')
+    hops[hops>n] = np.inf
+    
     return (G, A, degrees, hops)
 
 import random

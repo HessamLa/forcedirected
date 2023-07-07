@@ -1,6 +1,6 @@
-from .graphtools import load_graph_networkx
-from .graphtools import process_graph_networkx
-from .graphtools import remove_random_edges
+from .utilities.graphtools import load_graph_networkx
+from .utilities.graphtools import process_graph_networkx
+from .utilities.graphtools import remove_random_edges
 ############################################################################
 # EMBEDDING 
 ############################################################################
@@ -32,9 +32,3 @@ Actually:
 """
 from .algorithms import get_alpha_hops
 ######################################################################
-from .forces import repulsive_force_exp
-from .forces import repulsive_force_hops_exp
-from .forces import repulsive_force_recip_x
-from .forces import repulsive_force_ahops_recip_x
-
-from .forces import attractive_force_ahops

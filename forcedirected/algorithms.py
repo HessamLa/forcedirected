@@ -3,17 +3,21 @@ import numpy as np
 ############################################################################
 # EMBEDDING 
 ############################################################################
-def pairwise_difference(P: torch.tensor) -> torch.tensor:
+def pairwise_difference(P0: torch.tensor, P1: torch.tensor = None) -> torch.tensor:
     """
-    Returns a matrix such that M[i,j] = P[j]-P[i].
+    Calculates pairwise difference between points from P0 to P1.
+    If P1 is None, do pairwise difference between all pairs from P0.
+
+    Returns a matrix such that M[i,j] = P_1[j]-P_0[i].
     Summing row i corresponds with force from i to others
     Summing col j corresponds with forces from other to j
     """
-    n, d = P.shape
+    if(P1 is None):
+        P1 = P0
     # Expand dimensions of P to create row-wise repetitions
-    P_row = P.unsqueeze(1)    
+    P_row = P0.unsqueeze(1)    
     # Expand dimensions of P to create column-wise repetitions
-    P_col = P.unsqueeze(0)
+    P_col = P1.unsqueeze(0)
     # Compute the matrix M
     # print(P_row.size(), P_col.size())
     D = P_col - P_row
@@ -27,11 +31,11 @@ def get_alpha_to_hops (hops, alpha: float):
     # alpha^(h-1)
     alpha_to_hops = np.power(alpha, hops-1, out=np.zeros_like(hops), where=hops!=0)
     return alpha_to_hops
-def test_get_alpha_to_hops ():
-    print("Test get_alpha_to_hops(.)")
-    hops = np.array([[0,1,2,1],[1,0,1,2],[2,1,0,1],[1,2,2,0]])    
-    a = get_alpha_to_hops(hops, alpha=0.3)
-    print(a)
+# def test_get_alpha_to_hops ():
+#     print("Test get_alpha_to_hops(.)")
+#     hops = np.array([[0,1,2,1],[1,0,1,2],[2,1,0,1],[1,2,2,0]])    
+#     a = get_alpha_to_hops(hops, alpha=0.3)
+#     print(a)
 # test_get_alpha_to_hops()
 
 def get_alpha_hops (hops, alpha: float):
@@ -63,10 +67,11 @@ def get_alpha_hops (hops, alpha: float):
     result = alpha_to_hops/abs_Nh
     return result
 
-def test_get_alpha_hops ():
-    hops = np.array([[0,1,2,1],[1,0,1,2],[2,1,0,1],[1,2,2,0]])
-    alpha_hops = np.apply_along_axis(get_alpha_hops, axis=1, arr=hops, alpha=0.3)
-    print(alpha_hops)
+# def test_get_alpha_hops ():
+#     hops = np.array([[0,1,2,1],[1,0,1,2],[2,1,0,1],[1,2,2,0]])
+#     alpha_hops = np.apply_along_axis(get_alpha_hops, axis=1, arr=hops, alpha=0.3)
+#     print(alpha_hops)
+
 # test_get_alpha_hops()
 # print(hops)
 # print(alpha_hops)

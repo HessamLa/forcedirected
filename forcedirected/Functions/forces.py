@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 
-from algorithms import get_alpha_hops, pairwise_difference
+from ..algorithms import get_alpha_hops, pairwise_difference
 
 
 def repulsive_force_exp(D, N, unitD, k1=1, k2=1, return_sum=True):
@@ -109,27 +109,26 @@ def repulsive_force_ahops_recip_x(D, N, unitD, alpha_hops, k1=1, k2=1, return_su
     
     if(return_sum):
         F = F.sum(axis=1) # sum the i-th row to get all forces to i
-
         # print("After sum")
         # print("F[2]\n", F[2])
-
     return F
-def test_repulsive_force_ahops_recip_x():
-    hops = np.array([[0,1,2,1],[1,0,1,2],[2,1,0,1],[1,2,2,0]])
-    alpha_hops = np.apply_along_axis(get_alpha_hops, axis=1, arr=hops, alpha=0.3)
-
-    a = [[1,1,1], [0,0,0], [2,2,2], [-1,-1,-1]]
-    a = torch.tensor(a).float()
-    D = pairwise_difference(a)
-    N = torch.norm(D, dim=-1)
-
-    # Element-wise division with mask
-    unitD = torch.zeros_like(D)
-    mask = N!=0 # Create a mask for non-zero division
-    unitD[mask] = D[mask] / N[mask].unsqueeze(-1)
     
-    t = repulsive_force_ahops_recip_x(D, N, unitD, alpha_hops, k1=1, k2=1, return_sum=True)
-    print(t)
+# def test_repulsive_force_ahops_recip_x():
+#     hops = np.array([[0,1,2,1],[1,0,1,2],[2,1,0,1],[1,2,2,0]])
+#     alpha_hops = np.apply_along_axis(get_alpha_hops, axis=1, arr=hops, alpha=0.3)
+
+#     a = [[1,1,1], [0,0,0], [2,2,2], [-1,-1,-1]]
+#     a = torch.tensor(a).float()
+#     D = pairwise_difference(a)
+#     N = torch.norm(D, dim=-1)
+
+#     # Element-wise division with mask
+#     unitD = torch.zeros_like(D)
+#     mask = N!=0 # Create a mask for non-zero division
+#     unitD[mask] = D[mask] / N[mask].unsqueeze(-1)
+    
+#     t = repulsive_force_ahops_recip_x(D, N, unitD, alpha_hops, k1=1, k2=1, return_sum=True)
+#     print(t)
 
 # test_repulsive_force_ahops_recip_x()
 
