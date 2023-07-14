@@ -163,6 +163,7 @@ class FDModel(Model_Base):
             # self.embeddings.update(self.dZ)
             self.embeddings.Z += dZ
         
+            #### FIX ME. ForceClass should be able to work with batch methods
             ###################################
 
             # batch ends
