@@ -20,7 +20,7 @@ class NodeEmbeddingClass:
         self.unitD = torch.zeros_like(self.D)   # unit direction
         mask = self.N!=0 
         self.unitD[mask] = self.D[mask] / self.N[mask].unsqueeze(-1)
-        
+    
     def set(self, Z):
         if(type(Z) is not torch.Tensor):
             Z = torch.tensor(Z)

@@ -26,6 +26,33 @@ def repulsive_force_exp(D, N, unitD, k1=1, k2=1, return_sum=True):
         F = F.sum(axis=1) # sum the i-th row to get all forces to i
 
     return F
+def repulsive_force_hops(D, N, unitD, hops, k1=1, k2=1, return_sum=True):
+    """
+    linear repulsive force proportional to hops distance
+    f(x) = k1*h(1-x/k2) if x<k2, else 0
+    D (n,n,d) is the pairwaise difference (force). M[i,j]=P[j]-P[i], from i to j
+    N (n,n) is norm of each pairwise diff element, i.e x.
+    unitD (n,n,d) is the unit direction, D/N
+
+    hops (n,n) is the coefficient for each hop-distant neighbor
+        alpha_hops[i,j] = alpha^(h-1) where h is hops-distance between i,j
+    k1 is amplitude factor, scalar: k1*f(x) 
+    k2 is decaying factor factor, scalar: f(x/k2)
+    """
+    n = D.shape[0] # total number of nodes
+    
+    # force amplitudes is the main part the algorithm
+    # calculate forces amplitude
+    F = torch.where(N<k2,   k1/n * hops * (1-N/k2),
+                            torch.zeros_like(N))
+
+    # apply negative direction
+    F = -unitD * F.unsqueeze(-1)
+    
+    if(return_sum):
+        F = F.sum(axis=1) # sum the i-th row to get all forces to i
+
+    return F
 
 def repulsive_force_hops_exp(D, N, unitD, hops, k1=1, k2=1, return_sum=True):
     """

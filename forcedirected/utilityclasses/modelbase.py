@@ -10,6 +10,7 @@ class Callback_Base:
 class Model_Base:
     def __init__(self, **kwargs) -> None:
         self.callbacks = []
+        self.stop_training = False
         if('callbacks' in kwargs):
             self.add_callbacks(kwargs['callbacks'])
         
