@@ -45,10 +45,11 @@ ax.set_ylim(bottom=0.0)
 # Show the plot
 plt.show()
 
-def reduce2dim (Z, dim, method='PCA'):
+def reducedim (Z, target_dim, method='PCA', **kwargs):
     if(method.upper() == 'PCA'):
-        pca = PCA(n_components=dim)
-        return pca.fit_transform(Z)
+        pca = PCA(n_components=target_dim, **kwargs)
+        X = pca.fit_transform(Z)
+        return X
     else:
         print(method, 'IS UNKNOWN')
         raise
@@ -62,7 +63,7 @@ def drawgraph_2d(G, Z, nodes, degrees, figsize=(20,12), sizeratio=None, title=''
     if(sizeratio is None):
         sizeratio = (figsize[0]//10)**2
 
-    X = reduce2dim(Z, 2)
+    X = reducedim(Z, 2)
 
     plt.scatter(X[:, 0], X[:, 1], s=np.log(degrees+1))
     
@@ -204,6 +205,7 @@ csvpath = f'./embeddings-drop-test/{dataset}-{noisetag}-{droptag}/stats.csv'
 
 df = pd.read_csv(csvpath)
 # print(df.head())
+
 
 hopsmean = [col for col in df.columns 
             if col.endswith('mean') and 

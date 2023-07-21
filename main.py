@@ -1,14 +1,16 @@
 
 # %%
 # reload modules
-%load_ext autoreload
-%autoreload 2
+# %load_ext autoreload
+# %autoreload 2
 
 # get arguments
 import argparse
 import os
 import pickle
 from typing import Any
+
+import logging
 # from types import *
 
 from pprint import pprint
@@ -35,13 +37,81 @@ from forcedirected.utilityclasses import Model_Base, Callback_Base
 import torch
 
 # %%
+log = logging.getLogger(__name__)
+log.setLevel(logging.INFO)
+# create console handler with a higher log level
+ch = logging.StreamHandler()
+ch.setLevel(logging.DEBUG)
+# create formatter and add it to the handlers
+ch.setFormatter(logging.Formatter('%(message)s'))
+log.addHandler(ch)
 
-# from model_1 import ForceDirected
-# from model_2 import FDModel
-# from model_3 import FDModel
-from model_4 import FDModel
+# %%
+def zblock_distances(hops_block, Z, maxhop, Z_col=None):
+    n = Z.size(0)
+    if(Z_col is None):
+        i, j = torch.triu_indices(n, n)
+        D = Z[i] - Z[j]
+    else:
+        D = Z_col.unsqueeze(0) - Z.unsqueeze(1)
+    N=torch.norm(D, dim=-1)
+    distances={h:[] for h in range(1, maxhop+1)}
+    for h in distances.keys():
+        hmask = hops_block==h
+        distances[h] = list(N[hmask])
+    return distances
+# %%
 
-def make_hops_stats(N, hops, maxhops):
+from model_1 import FDModel as FDModel_1
+from model_2 import FDModel as FDModel_2
+from model_3 import FDModel as FDModel_3
+from model_4 import FDModel as FDModel_4
+
+def zblock_hops_count(Z_block1, Z_block2, hops_block, maxhop):
+    D_block = pairwise_difference(Z_block1, Z_block2)
+    N_block = torch.norm(D_block, dim=-1)
+    count={}
+    for h in range(1, maxhop+1):
+        count[h] = (hops_block == h).sum().item()
+            
+
+def make_hops_stats(Z, hops, maxhops):
+    """Z is node embedding, torch tensor"""
+    block_size = 5000*12 // Z.size()[-1]
+    # print("make_hops_stats", Z.device, f"block_size:{block_size}", f"ndim:{Z.size(1)}", f"block bytesize:{Z.element_size()*block_size*Z.size(1):_d}")
+    maxhops = int(maxhops)
+    sum_x=torch.zeros(maxhops+1).to(Z.device)
+    sum_x2=torch.zeros(maxhops+1).to(Z.device)
+
+    i,j = torch.triu_indices(Z.size(0), Z.size(0), offset=1) # offset 1 to exclude self distance
+    for b in range(0, Z.size(0), block_size):
+        i_block = i[b:b+block_size]
+        j_block = j[b:b+block_size]
+        # print(f"block={b}", f"i_block:{i_block[0]}-{i_block[-1]}", f"j_block:{j_block[0]}-{j_block[-1]}")
+        hops_block = hops[i_block, j_block]
+        D_block = Z[j_block] - Z[i_block]
+        N_block = torch.norm(D_block, dim=-1)
+
+        for h in range(1, maxhops+1):
+            hmask = hops_block==h
+            sum_x[h] += N_block[hmask].sum()
+            sum_x2[h] += (N_block[hmask]**2).sum()
+        # disconnected components
+        hmask = hops_block>maxhops 
+        sum_x[maxhops] += N_block[hmask].sum()
+        sum_x2[maxhops] += (N_block[hmask]**2).sum()
+        del hops_block, D_block, N_block
+
+    s={}
+    s.update({f"hops{h}_mean": (sum_x[h]/(hops==h).sum()).item() for h in range(1, maxhops+1)})
+    s.update({f"hops{h}_std":  (sum_x2[h]/(hops==h).sum() - (sum_x[h]/(hops==h).sum())**2).sqrt().item() for h in range(1, maxhops+1)})
+    # disconnected components
+    if((hops>maxhops).sum()>0):
+        s[f"hops{maxhops}_mean"] = (sum_x[maxhops]/(hops>maxhops).sum()).item()
+        s[f"hops{maxhops}_std"]  = (sum_x2[maxhops]/(hops>maxhops).sum() - (sum_x[maxhops]/(hops>maxhops).sum())**2).sqrt().item()
+    return s
+                
+def make_hops_stats_(N, hops, maxhops):
     """N is pairwise euclidean distance, numpy/torch tensor
     hops is pairwise hop distance, numpy/torch tensor
     N and hops must have the same shape
@@ -89,7 +159,7 @@ def make_stats_log(model, epoch):
     logstr = ''
     s = {'epoch': epoch}
 
-    s.update(make_hops_stats(model.N, model.hops, model.maxhops))
+    s.update(make_hops_stats(model.Z, model.hops, model.maxhops))
 
     summary_stats = lambda x: (torch.sum(x).item(), torch.mean(x).item(), torch.std(x).item())
 
@@ -129,7 +199,7 @@ def make_stats_log(model, epoch):
         if(type(v) is torch.Tensor):
             s[k] = v.item()
 
-    logstr = ''
+    logstr = f'{epoch}| '
     logstr+= f"attr:{s['fa-sum']:<9.3f}({s['fa-mean']:.3f})  "
     logstr+= f"repl:{s['fr-sum']:<9.3f}({s['fr-mean']:.3f})  "
     logstr+= f"wattr:{s['wfa-sum']:<9.3f}({s['wfa-mean']:.3f})  "
@@ -143,14 +213,30 @@ def make_stats_log(model, epoch):
 class StatsLog (Callback_Base):
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
-        self.statsdf = pd.DataFrame()
-        self.log = ReportLog(args.logfilepath)
-    
         self.emb_filepath = f"{args.outputdir}/{args.outputfilename}" # the path to store the latest embedding
         self.hist_filepath = f"{args.outputdir}/{args.historyfilename}" # the path to APPEND the latest embedding
         self.stats_filepath = f"{args.outputdir}/{args.statsfilename}" # the path to save the latest stats
 
-        os.makedirs(args.outputdir, exist_ok=True)
+        self.statsdf = pd.DataFrame()
+        # self.logger = ReportLog(args.logfilepath)
+        
+        # make he stat logger #######################
+        self.statlog = logging.getLogger('StatsLog')
+        self.statlog.setLevel(logging.INFO)
+
+        # Add a file handler to write logs to a file
+        file_handler = logging.FileHandler(args.logfilepath)
+        file_handler.setLevel(logging.INFO)
+        file_handler.setFormatter(logging.Formatter('%(asctime)s-%(levelname)s: %(message)s'))
+        self.statlog.addHandler(file_handler)
+
+        # Add a console handler to print logs to the console
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(logging.DEBUG)
+        # console_handler.setFormatter(logging.Formatter('> %(message)s'))
+        self.statlog.addHandler(console_handler)
+        ############################################
+    
 
     def save_embeddings(self, fd_model, **kwargs):
         emb = fd_model.get_embeddings()
@@ -167,7 +253,7 @@ class StatsLog (Callback_Base):
     def update_stats(self, fd_model, epoch, **kwargs):
         # make stats and logs
         stats, logstr = make_stats_log(fd_model, epoch)
-        self.log.print(logstr)
+        self.statlog.info(logstr) # FIX THIS
 
         # make the stats as dataframe
         if(len(self.statsdf) == 0):  # new dataframe
@@ -178,10 +264,14 @@ class StatsLog (Callback_Base):
         self.statsdf = pd.concat([self.statsdf, stats], ignore_index=True)
 
         # Save DataFrame to a CSV file
-        temp_filename = self.stats_filepath+'.tmp'
-        self.statsdf.to_csv(temp_filename, index=False)
+        # temp_filename = self.stats_filepath+'_tmp'
+        self.statsdf.to_csv(self.stats_filepath, index=False)
         # Rename the temporary file to the final filename
-        os.rename(temp_filename, self.stats_filepath)
+        # os.rename(temp_filename, self.stats_filepath)
+
+    def on_epoch_begin(self, fd_model, epoch, epochs, **kwargs):
+        log.info(f'Epoch {epoch+1}/{epochs}')
+        # return super().on_batch_begin(fd_model, epoch, **kwargs)
 
     def on_epoch_end(self, fd_model, epoch, **kwargs):
         self.update_stats(fd_model, epoch, **kwargs)
@@ -189,9 +279,12 @@ class StatsLog (Callback_Base):
         if(epoch % args.save_history_every == 0):
             self.save_history(fd_model, **kwargs)
             
-            
+    def on_batch_end(self, fd_model, batch, **kwargs):
+        log.info(f"   Batch {batch}/{kwargs['batches']} ({kwargs['row_batch_size']}/{kwargs['max_batch_size']})")
+        # return super().on_batch_begin(fd_model, batch, **kwargs)
+
     def on_train_end(self, fd_model, epochs, **kwargs):
-        print("Final save")
+        log.info("Final save")
         self.save_embeddings(fd_model, **kwargs)
         self.save_history(fd_model, **kwargs)
         
@@ -247,20 +340,23 @@ def process_arguments(
                 # You can override the following default parameters by argument passing
                 EMBEDDING_METHOD='forcedirected',
                 DEFAULT_DATASET='ego-facebook',
+                OUTPUTDIR_ROOT='./embeddings-dbg',
                 DATASET_CHOICES=['tinygraph', 'cora', 'citeseer', 'pubmed', 'ego-facebook', 'corafull', 'wiki'],
-                NDIM=12, ALPHA=0.3,
+                NDIM=128, ALPHA=0.3,
                 ):
     
     parser = argparse.ArgumentParser(description='Process command line arguments.')
     parser.add_argument('-d', '--dataset', type=str, default=DEFAULT_DATASET, choices=DATASET_CHOICES, 
                         help='name of the dataset (default: cora)')
+    parser.add_argument('-v', '--fdversion', type=int, default=4, choices=[1,2,3,4,5],
+                        help='version of the force-directed model (default: 4)')
     parser.add_argument('--outputdir', type=str, default=None, 
-                        help=f"output directory (default: ./embeddings-tmp/{EMBEDDING_METHOD}_v{FDModel.VERSION}_{{ndim}}d/{DEFAULT_DATASET})")
+                        help=f"output directory (default: {OUTPUTDIR_ROOT}/{EMBEDDING_METHOD}_v{{version}}_{{ndim}}d/{DEFAULT_DATASET})")
     parser.add_argument('--outputfilename', type=str, default='embed-df.pkl', 
                         help='filename to save the final result (default: embed-df.pkl). Use pandas to open.')
     parser.add_argument('--historyfilename', type=str, default='embed-hist.pkl', 
                         help='filename to store s sequence of results from each iteration (default: embed-hist.pkl). Use pickle loader to open.')
-    parser.add_argument('--save-history-every', type=int, default=5, 
+    parser.add_argument('--save-history-every', type=int, default=100, 
                         help='save history every n iteration.')
     parser.add_argument('--statsfilename', type=str, default='stats.csv', 
                         help='filename to save the embedding stats history (default: stats.csv)')
@@ -268,7 +364,7 @@ def process_arguments(
                         help='path to the log file (default: {EMBEDDING_METHOD}-{dataset}.log)')
 
     parser.add_argument('--ndim', type=int, default=NDIM, 
-                        help='number of embedding dimensions (default: 12)')
+                        help=f'number of embedding dimensions (default: {NDIM})')
     parser.add_argument('--alpha', type=float, default=ALPHA,
                         help='alpha parameter (default: 0.3)')
 
@@ -303,9 +399,13 @@ def process_arguments(
         print("====================================")
         
     # use default parameter values if required
-
+    if  (args.fdversion==1): args.FDModel = FDModel_1
+    elif(args.fdversion==2): args.FDModel = FDModel_2
+    elif(args.fdversion==3): args.FDModel = FDModel_3
+    elif(args.fdversion==4): args.FDModel = FDModel_4
+    
     if(args.outputdir is None):
-        args.outputdir = f"./embeddings-tmp/{EMBEDDING_METHOD}_v{FDModel.VERSION}_{args.ndim}d/{args.dataset}"
+        args.outputdir = f"{OUTPUTDIR_ROOT}/{EMBEDDING_METHOD}_v{args.FDModel.VERSION}_{args.ndim}d/{args.dataset}"
     if(args.logfilepath is None):
         args.logfilepath = f"{args.outputdir}/{EMBEDDING_METHOD}-{args.dataset}.log"
 
@@ -330,6 +430,8 @@ if __name__ == '__main__':
     # args = process_arguments(DEFAULT_DATASET='ego-facebook')
     # args = process_arguments(DEFAULT_DATASET='tinygraph')
     args = process_arguments()
+    os.makedirs(args.outputdir, exist_ok=True)
+
     
     DATA_ROOT=os.path.expanduser('~/gnn/datasets')       # root of datasets to obtain graphs from
     # EMBEDS_ROOT=os.path.expanduser('~/gnn/embeddings')    # root of embeddings to save to
@@ -382,7 +484,7 @@ if __name__ == '__main__':
         device = torch.device(args.device)
 
     ##### START EMBEDDING #####    
-    model = FDModel(Gx, n_dims=args.ndim, alpha=args.alpha, callbacks=[StatsLog(), EarlyStopping()])
+    model = args.FDModel(Gx, n_dims=args.ndim, alpha=args.alpha, callbacks=[StatsLog(), EarlyStopping()])
     model.train(epochs=args.epochs, device=device)
     
     ##### SAVE EMBEDDINGS #####

@@ -16,6 +16,8 @@ parser.add_argument('--outputfilename', type=str, default='embed.npy',
                     help='filename to save the final result (default: embed.npy). Use numpy.load() to open.')
 parser.add_argument('--historyfilename', type=str, default='embed-hist.pkl', 
                     help='filename to store s sequence of results from each iteration (default: embed-hist.pkl). Use pickle loader to open.')
+parser.add_argument('--save-history-period', type=int, default=5, 
+                    help='save history every n iteration.')
 parser.add_argument('--statsfilename', type=str, default='stats.csv', 
                     help='filename to save the embedding stats history (default: stats.csv)')
 parser.add_argument('--logfilepath', type=str, default=None, 
@@ -216,7 +218,7 @@ def make_embedding_stats(Nt, hops, maxhops):
     return stats
     # print(f"inf {Nt[mask].mean():10.3f} {Nt[mask].std():10.3f} {len(Nt[mask])/2:8.0f}")
 
-import nodeforce as nf
+import forcedirected as fd
 
 
 ## random drop class
@@ -370,7 +372,7 @@ def embed_forcedirected(Z, degrees, hops):
 
     
     # alpha_hops = get_alpha_hops(hops, alpha)
-    alpha_hops = np.apply_along_axis(nf.get_alpha_hops, axis=1, arr=hops, alpha=alpha)
+    alpha_hops = np.apply_along_axis(fd.get_alpha_hops, axis=1, arr=hops, alpha=alpha)
     alpha_hops = torch.tensor (alpha_hops).to(device)
     
     mass = torch.tensor(degrees).to(device) # mass of a node is equivalent to its degree
@@ -425,7 +427,7 @@ def embed_forcedirected(Z, degrees, hops):
         
         t = time.time()
         # Calculate forces
-        D = nf.pairwise_difference(Z) # D[i,j] = Z[i] - Z[j]
+        D = fd.pairwise_difference(Z) # D[i,j] = Z[i] - Z[j]
         durations.t_pairwisediff = time.time() - t
         t = time.time()
         N = torch.norm(D, dim=-1)     # pairwise distance between points
@@ -437,13 +439,13 @@ def embed_forcedirected(Z, degrees, hops):
 
         # find forces
         t = time.time()
-        Fa = nf.attractive_force_ahops(D, N, unitD, alpha_hops, k1=1, k2=1)
+        Fa = fd.attractive_force_ahops(D, N, unitD, alpha_hops, k1=1, k2=1)
         durations.t_Fa += time.time()-t
 
         # Fr = repulsive_force_recip_x(D, N, unitD, k1=2, k2=2)        
-        # Fr = nf.repulsive_force_exp(D, N, unitD, k1=10, k2=0.9)
+        # Fr = fd.repulsive_force_exp(D, N, unitD, k1=10, k2=0.9)
         t = time.time()
-        Fr = nf.repulsive_force_hops_exp(D, N, unitD, torch.tensor(hops).to(device), k1=10, k2=0.9)
+        Fr = fd.repulsive_force_hops_exp(D, N, unitD, torch.tensor(hops).to(device), k1=10, k2=0.9)
         durations.t_Fr += time.time()-t
         
         t = time.time()
