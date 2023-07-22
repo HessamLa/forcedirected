@@ -8,7 +8,7 @@ FD_VERSION='4'
 function run_sbatch_script {
     local dataset_name="$1"
     local ndim="$2"
-    local cmd="python3 main.py --outputdir embeddings-tmp -d $dataset_name --epochs 4000 --ndim $ndim --fdversion $FD_VERSION"
+    local cmd="python3 main.py -d $dataset_name --epochs 5000 --ndim $ndim --fdversion $FD_VERSION"
     echo "$cmd"
 
     # Make the sbatch script
@@ -43,20 +43,20 @@ EOT
 #     done
 # done
 
-# for METHOD in node2vec deepwalk line struc2vec sdne
-# for METHOD in node2vec deepwalk line struc2vec
-# for DATASET_NAME in cora citeseer wiki ego-facebook pubmed corafull blogcatalog
-for DATASET_NAME in corafull pubmed
+# for NDIM in 64 128
+for NDIM in 6 12 24 32 64 128
 do
-    # for NDIM in 64 128
-    for NDIM in 6 12 24 32 64 128
+    # for METHOD in node2vec deepwalk line struc2vec sdne
+    # for METHOD in node2vec deepwalk line struc2vec
+    for DATASET_NAME in cora citeseer wiki ego-facebook pubmed corafull blogcatalog
+    # for DATASET_NAME in corafull pubmed
     do
         # for DATASET_NAME in pubmed corafull wiki
         # for DATASET_NAME in ego-facebook
 
         # echo "$DATASET_NAME"
         # cmd=''
-        # cmd="python3 main.py -d $DATASET_NAME --epochs 4000 --ndim $NDIM --fdversion 4"
+        # cmd="python3 main.py -d $DATASET_NAME --epochs 5000 --ndim $NDIM --fdversion 4"
         # echo "$cmd"
 
         # Call the function to make batch script
@@ -64,9 +64,8 @@ do
     done
 done
 
-run_sbatch_script "ego-facebook" "128"
 
-# DATASET_NAME=cora; python3 model.py -d $DATASET_NAME --epochs 4000 > ./tmplog/fd-$DATASET_NAME.txt 2> ./tmplog/fd-$DATASET_NAME.err
+# DATASET_NAME=cora; python3 model.py -d $DATASET_NAME --epochs 5000 > ./tmplog/fd-$DATASET_NAME.txt 2> ./tmplog/fd-$DATASET_NAME.err
 
 
 # sbatch <<EOT

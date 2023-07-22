@@ -5,8 +5,8 @@
 # %autoreload 2
 
 # get arguments
+import os, sys
 import argparse
-import os
 import pickle
 from typing import Any
 
@@ -40,7 +40,7 @@ import torch
 log = logging.getLogger(__name__)
 log.setLevel(logging.INFO)
 # create console handler with a higher log level
-ch = logging.StreamHandler()
+ch = logging.StreamHandler(sys.stdout)
 ch.setLevel(logging.DEBUG)
 # create formatter and add it to the handlers
 ch.setFormatter(logging.Formatter('%(message)s'))
@@ -231,8 +231,8 @@ class StatsLog (Callback_Base):
         self.statlog.addHandler(file_handler)
 
         # Add a console handler to print logs to the console
-        console_handler = logging.StreamHandler()
-        console_handler.setLevel(logging.DEBUG)
+        console_handler = logging.StreamHandler(sys.stdout)
+        console_handler.setLevel(logging.INFO)
         # console_handler.setFormatter(logging.Formatter('> %(message)s'))
         self.statlog.addHandler(console_handler)
         ############################################
@@ -340,8 +340,8 @@ def process_arguments(
                 # You can override the following default parameters by argument passing
                 EMBEDDING_METHOD='forcedirected',
                 DEFAULT_DATASET='ego-facebook',
-                OUTPUTDIR_ROOT='./embeddings-dbg',
-                DATASET_CHOICES=['tinygraph', 'cora', 'citeseer', 'pubmed', 'ego-facebook', 'corafull', 'wiki'],
+                OUTPUTDIR_ROOT='./embeddings-tmp',
+                DATASET_CHOICES=['tinygraph', 'cora', 'citeseer', 'pubmed', 'ego-facebook', 'corafull', 'wiki', 'blogcatalog', 'flickr', 'youtube'],
                 NDIM=128, ALPHA=0.3,
                 ):
     
@@ -447,7 +447,7 @@ if __name__ == '__main__':
         args.edgelist = f'{DATA_ROOT}/wiki/Wiki_edgelist.txt'
     elif(args.dataset in ['blogcatalog']):
         args.nodelist = f'{DATA_ROOT}/BlogCatalog-dataset/data/nodes.csv'
-        args.edgelist = f'{DATA_ROOT}/BlogCatalog-dataset/data/edge.csv'
+        args.edgelist = f'{DATA_ROOT}/BlogCatalog-dataset/data/edges.csv'
         args.labels   = f'{DATA_ROOT}/BlogCatalog-dataset/data/labels.csv' # the first column is the node id, the second column is the label
 
     # load graph from files into a networkx object
