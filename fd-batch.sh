@@ -1,117 +1,90 @@
 #!/bin/bash
 
+if [ $# -eq 0 ]
+  then # set the defaults
+    PARTITION='gpu-debug'
+elif [ $1 = 'gpu' ] || [ $1 = 'gpu-debug' ]
+  then
+    PARTITION=$1
+else
+  echo "Usage: $0 [partition]"
+  exit 1
+fi
+
+if [ $PARTITION = 'gpu' ]
+  then
+    TIME="1-23:59:59"
+elif [ $PARTITION = 'gpu-debug' ]
+  then
+    TIME="3:59:59"
+fi
+
+
+FD_VERSION='4'
+PROGRAM_RUN_CMD="python3 main.py --epochs 5000 --fdversion $FD_VERSION"
+
 LOGDIR=./tmplog
 rm -rf "$LOGDIR"
 mkdir -p "$LOGDIR"
-FD_VERSION='4'
 
-function run_sbatch_script {
-    local dataset_name="$1"
-    local ndim="$2"
-    local cmd="python3 main.py -d $dataset_name --epochs 5000 --ndim $ndim --fdversion $FD_VERSION"
-    echo "$cmd"
-
-    # Make the sbatch script
-    sbatch <<EOT
-#!/bin/bash
-#SBATCH -J fd$ndim-$dataset_name
-#SBATCH -p gpu
-#SBATCH --time=1-23:00:00
-#SBATCH -A general 
-#SBATCH -o $LOGDIR/fd-$ndim-$dataset_name-%j.txt
-#SBATCH -e $LOGDIR/fd-$ndim-$dataset_name-%j.err
-#SBATCH --nodes=1 
-#SBATCH --ntasks-per-node=1
-#SBATCH --gpus-per-node=1
-#SBATCH --mem=200G
-
-module load deeplearning/2.12.0
-
-srun $cmd
-
-EOT
+function program_commands() {
+  dataset_name=$1
+  ndim=$2
+  
 }
 
-# Uncomment this block if you need the command list for vgnn
-# echo '' > commands.txt
-# for METHOD in node2vec deepwalk line sdne struc2vec
-# do
-#     for DATASET_NAME in cora citeseer pubmed ego-facebook corafull wiki
-#     do
-#         cmd="python3 make-embedding.py -m $METHOD -d $DATASET_NAME"
-#         echo "$cmd" >> commands.txt
+function slurm_flags() {
+  dataset_name=$1
+  ndim=$2
+  if [ $PARTITION = 'gpu' ]
+    then
+      s="--time=1-23:59:00"
+  elif [ $PARTITION = 'gpu-debug' ]
+    then
+    s="--time=3:59:00"
+  fi
+  s="$s -o $LOGDIR/fd-$ndim-$dataset_name-%j.txt -e $LOGDIR/fd-$ndim-$dataset_name-%j.err"
+  
+  echo $s
+}
+
+function run_sbatch_script() {
+  local dataset_name=$1
+  local ndim=$2
+  local method=$3
+
+  program_cmd="$PROGRAM_RUN_CMD -d $dataset_name --ndim $ndim"
+
+  sbatch_flags="-p $PARTITION -A general --time=$TIME -J $ndim-$dataset_name --nodes=1 --ntasks-per-node=1 --gpus-per-node=1 --mem=200G"
+  sbatch_flags="$sbatch_flags -o $LOGDIR/fd-$ndim-$dataset_name-%j.txt -e $LOGDIR/fd-$ndim-$dataset_name-%j.err"
+
+  sbatch $sbatch_flags --wrap "module load deeplearning/2.12.0; $program_cmd"
+}
+
+function run_srun_script() {
+  local dataset_name=$1
+  local ndim=$2 
+  local method=$3
+
+  program_cmd=$(program_commands $dataset_name $ndim $method)
+  slurm_flags=$(slurm_flags)
+  
+  srun $slurm_flags $program_cmd
+}
+
+# # for method in forcedirected node2vec deepwalk line sdne struc2vec; do
+# for method in forcedirected; do
+#   for ndim in 6 12 24 32 64 128; do
+#     for dataset_name in cora citeseer pubmed ego-facebook corafull wiki ; do
+#       run_sbatch_script "$dataset_name" "$ndim" "$method" 
 #     done
+#   done
 # done
 
-# for NDIM in 64 128
-for NDIM in 6 12 24 32 64 128
-do
-    # for METHOD in node2vec deepwalk line struc2vec sdne
-    # for METHOD in node2vec deepwalk line struc2vec
-    for DATASET_NAME in cora citeseer wiki ego-facebook pubmed corafull blogcatalog
-    # for DATASET_NAME in corafull pubmed
-    do
-        # for DATASET_NAME in pubmed corafull wiki
-        # for DATASET_NAME in ego-facebook
-
-        # echo "$DATASET_NAME"
-        # cmd=''
-        # cmd="python3 main.py -d $DATASET_NAME --epochs 5000 --ndim $NDIM --fdversion 4"
-        # echo "$cmd"
-
-        # Call the function to make batch script
-        run_sbatch_script "$DATASET_NAME" "$NDIM"
+for method in forcedirected; do
+  for ndim in 64 128; do
+    for dataset_name in cora ego-facebook ; do
+      run_sbatch_script "$dataset_name" "$ndim" "$method" 
     done
+  done
 done
-
-
-# DATASET_NAME=cora; python3 model.py -d $DATASET_NAME --epochs 5000 > ./tmplog/fd-$DATASET_NAME.txt 2> ./tmplog/fd-$DATASET_NAME.err
-
-
-# sbatch <<EOT
-# #!/bin/bash
-# #SBATCH -J test
-# #SBATCH -p gpu-debug
-# #SBATCH -A general 
-# #SBATCH -o test.txt
-# #SBATCH -e test.err
-# #SBATCH --nodes=1 
-# #SBATCH --ntasks-per-node=1
-# #SBATCH --gpus-per-node=1
-# #SBATCH --time=1:00:00
-# #SBATCH --mem=10G
-
-# # source ~/../BigRed200/gnn/.venv/bin/activate
-
-# module load deeplearning/2.12.0
-# module unload cudatoolkit/11.7
-
-# module list
-
-# srun python3 -c \
-# 'import torch; 
-# print(torch.cuda.is_available()); 
-# print(torch.cuda.get_device_name()); 
-# print(torch.cuda.device_count()); 
-# print(torch.cuda.current_device())
-# print(torch.__version__);
-# import pandas as pd;
-# '
-
-# EOT
-
-# sbatch <<EOT
-# #!/bin/bash
-# #SBATCH -J linkpred
-# #SBATCH -p gpu-debug
-# #SBATCH -A general 
-# #SBATCH -o linkpred-%j.txt
-# #SBATCH -e linkpred-%j.err
-# #SBATCH --nodes=1 
-# #SBATCH --ntasks-per-node=1
-# #SBATCH --gpus-per-node=1
-# #SBATCH --time=4:00:00
-# #SBATCH --mem=200G
-
-# srun python linkprediction.py
-# EOT
