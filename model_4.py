@@ -174,7 +174,6 @@ class FDModel(Model_Base):
 
                     # batch ends
                     self.notify_batch_end_callbacks(**kwargs)
-
                 return row_batch_size, max_batch_size
             
             row_batch_size, max_batch_size = run_batches(self, row_batch_size=row_batch_size, max_batch_size=max_batch_size, **kwargs)
