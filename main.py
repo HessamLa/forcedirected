@@ -47,50 +47,38 @@ ch.setFormatter(logging.Formatter('%(message)s'))
 log.addHandler(ch)
 
 # %%
-def zblock_distances(hops_block, Z, maxhop, Z_col=None):
-    n = Z.size(0)
-    if(Z_col is None):
-        i, j = torch.triu_indices(n, n)
-        D = Z[i] - Z[j]
-    else:
-        D = Z_col.unsqueeze(0) - Z.unsqueeze(1)
-    N=torch.norm(D, dim=-1)
-    distances={h:[] for h in range(1, maxhop+1)}
-    for h in distances.keys():
-        hmask = hops_block==h
-        distances[h] = list(N[hmask])
-    return distances
-# %%
 
 from model_1 import FDModel as FDModel_1
 from model_2 import FDModel as FDModel_2
 from model_3 import FDModel as FDModel_3
 from model_4 import FDModel as FDModel_4
-
-def zblock_hops_count(Z_block1, Z_block2, hops_block, maxhop):
-    D_block = pairwise_difference(Z_block1, Z_block2)
-    N_block = torch.norm(D_block, dim=-1)
-    count={}
-    for h in range(1, maxhop+1):
-        count[h] = (hops_block == h).sum().item()
-            
+from model_4nodrop import FDModel as FDModel_4nodrop
 
 def make_hops_stats(Z, hops, maxhops):
-    """Z is node embedding, torch tensor"""
-    block_size = 5000*12 // Z.size()[-1]
+    print("make_hops_stats")
     # print("make_hops_stats", Z.device, f"block_size:{block_size}", f"ndim:{Z.size(1)}", f"block bytesize:{Z.element_size()*block_size*Z.size(1):_d}")
     maxhops = int(maxhops)
-    sum_x=torch.zeros(maxhops+1).to(Z.device)
-    sum_x2=torch.zeros(maxhops+1).to(Z.device)
+    sum_x=torch.zeros(maxhops+2).to(Z.device)
+    sum_x2=torch.zeros(maxhops+2).to(Z.device)
 
     i,j = torch.triu_indices(Z.size(0), Z.size(0), offset=1) # offset 1 to exclude self distance
-    for b in range(0, Z.size(0), block_size):
+    """Z is node embedding, torch tensor"""
+    # empty cuda cache
+    torch.cuda.empty_cache()
+    # get available cuda memory
+    available_memory = torch.cuda.get_device_properties(Z.device).total_memory - torch.cuda.memory_allocated(Z.device)
+    block_size = int(available_memory*0.9) // (Z.element_size()*Z.size(1)) # 10GB
+    print(f"available_memory {available_memory//2**30} GB")
+    print(f"block_size {block_size} elements")
+    print(f"block_size {block_size*Z.element_size()*Z.size(1)/2**30} GB")
+        
+    for b in range(0, len(i), block_size):
+        print(b, b+block_size)
         i_block = i[b:b+block_size]
         j_block = j[b:b+block_size]
         # print(f"block={b}", f"i_block:{i_block[0]}-{i_block[-1]}", f"j_block:{j_block[0]}-{j_block[-1]}")
         hops_block = hops[i_block, j_block]
-        D_block = Z[j_block] - Z[i_block]
-        N_block = torch.norm(D_block, dim=-1)
+        N_block = torch.norm(Z[j_block] - Z[i_block], dim=-1)
 
         for h in range(1, maxhops+1):
             hmask = hops_block==h
@@ -98,10 +86,10 @@ def make_hops_stats(Z, hops, maxhops):
             sum_x2[h] += (N_block[hmask]**2).sum()
         # disconnected components
         hmask = hops_block>maxhops 
-        sum_x[maxhops] += N_block[hmask].sum()
-        sum_x2[maxhops] += (N_block[hmask]**2).sum()
-        del hops_block, D_block, N_block
-
+        sum_x[maxhops+1] += N_block[hmask].sum()
+        sum_x2[maxhops+1] += (N_block[hmask]**2).sum()
+        del hops_block, N_block
+    print("make_hops_stats done")
     s={}
     s.update({f"hops{h}_mean": (sum_x[h]/(hops==h).sum()).item() for h in range(1, maxhops+1)})
     s.update({f"hops{h}_std":  (sum_x2[h]/(hops==h).sum() - (sum_x[h]/(hops==h).sum())**2).sqrt().item() for h in range(1, maxhops+1)})
@@ -109,50 +97,6 @@ def make_hops_stats(Z, hops, maxhops):
     if((hops>maxhops).sum()>0):
         s[f"hops{maxhops}_mean"] = (sum_x[maxhops]/(hops>maxhops).sum()).item()
         s[f"hops{maxhops}_std"]  = (sum_x2[maxhops]/(hops>maxhops).sum() - (sum_x[maxhops]/(hops>maxhops).sum())**2).sqrt().item()
-    return s
-                
-def make_hops_stats_(N, hops, maxhops):
-    """N is pairwise euclidean distance, numpy/torch tensor
-    hops is pairwise hop distance, numpy/torch tensor
-    N and hops must have the same shape
-    """
-    if(isinstance(N, torch.Tensor)):
-        get_mean = lambda x: x.mean().item()
-        get_std  = lambda x: x.std().item()
-        get_max  = lambda x: x.max().item()
-    else:
-        get_mean = lambda x: x.mean()
-        get_std  = lambda x: x.std()
-        get_max  = lambda x: x.max()
-        
-    s = {}
-    maxhops = int(maxhops)
-    # connected components
-    for h in range(1, maxhops+1):
-        tN = N[ hops==h ]
-        if( len( tN )>0 ):
-            s[f"hops{h}_mean"] = get_mean( tN )
-            s[f"hops{h}_std"]  = get_std( tN )
-        else:
-            s[f"hops{h}_mean"] = None
-            s[f"hops{h}_std"]  = None
-    
-    # for l in range(1, int(max(ht)+1)):
-    #     mask = hops==l
-    #     if(len(Nt[mask])>0):
-    #         s[f"hops{l}_mean"] = mean(tN)
-    #         s[f"hops{l}_std"]  = std(tN)
-    #     # print(f"{l:3d} {Nt[mask].mean():10.3f} {Nt[mask].std():10.3f} {len(Nt[mask])/2:8.0f}")
-    
-    # disconnected components
-    tN = N[hops>maxhops]
-    if( len( tN )>0 ):
-        s[f"hopsinf_mean"] = get_mean( tN )
-        s[f"hopsinf_std"]  = get_std( tN )
-    else:
-        s[f"hopsinf_mean"] = None
-        s[f"hopsinf_std"]  = None
-        
     return s
 
 def make_stats_log(model, epoch):
@@ -348,7 +292,7 @@ def process_arguments(
     parser = argparse.ArgumentParser(description='Process command line arguments.')
     parser.add_argument('-d', '--dataset', type=str, default=DEFAULT_DATASET, choices=DATASET_CHOICES, 
                         help='name of the dataset (default: cora)')
-    parser.add_argument('-v', '--fdversion', type=int, default=4, choices=[1,2,3,4,5],
+    parser.add_argument('-v', '--fdversion', type=str, default='4', choices=['1','2','3','4','4nodrop'],
                         help='version of the force-directed model (default: 4)')
     parser.add_argument('--outputdir', type=str, default=None, 
                         help=f"output directory (default: {OUTPUTDIR_ROOT}/{EMBEDDING_METHOD}_v{{version}}_{{ndim}}d/{DEFAULT_DATASET})")
@@ -399,10 +343,11 @@ def process_arguments(
         print("====================================")
         
     # use default parameter values if required
-    if  (args.fdversion==1): args.FDModel = FDModel_1
-    elif(args.fdversion==2): args.FDModel = FDModel_2
-    elif(args.fdversion==3): args.FDModel = FDModel_3
-    elif(args.fdversion==4): args.FDModel = FDModel_4
+    if  (args.fdversion=='1'): args.FDModel = FDModel_1
+    elif(args.fdversion=='2'): args.FDModel = FDModel_2
+    elif(args.fdversion=='3'): args.FDModel = FDModel_3
+    elif(args.fdversion=='4'): args.FDModel = FDModel_4
+    elif(args.fdversion=='4nodrop'): args.FDModel = FDModel_4nodrop
     
     if(args.outputdir is None):
         args.outputdir = f"{OUTPUTDIR_ROOT}/{EMBEDDING_METHOD}_v{args.FDModel.VERSION}_{args.ndim}d/{args.dataset}"
@@ -435,7 +380,7 @@ if __name__ == '__main__':
     
     DATA_ROOT=os.path.expanduser('~/gnn/datasets')       # root of datasets to obtain graphs from
     # EMBEDS_ROOT=os.path.expanduser('~/gnn/embeddings')    # root of embeddings to save to
-    if(args.dataset in ['cora', 'pubmed', 'citeseer', 'tinygraph', 'ego-facebook', 'corafull']):
+    if(args.dataset in ['cora', 'pubmed', 'citeseer', 'tinygraph', 'ego-facebook', 'corafull', 'blogcatalog']):
         args.nodelist = f'{DATA_ROOT}/{args.dataset}/{args.dataset}_nodes.txt'
         args.features = f'{DATA_ROOT}/{args.dataset}/{args.dataset}_x.txt'
         args.labels   = f'{DATA_ROOT}/{args.dataset}/{args.dataset}_y.txt'
