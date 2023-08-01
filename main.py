@@ -47,56 +47,60 @@ ch.setFormatter(logging.Formatter('%(message)s'))
 log.addHandler(ch)
 
 # %%
-
-from model_1 import FDModel as FDModel_1
-from model_2 import FDModel as FDModel_2
-from model_3 import FDModel as FDModel_3
-from model_4 import FDModel as FDModel_4
-from model_4nodrop import FDModel as FDModel_4nodrop
-
+import gc
 def make_hops_stats(Z, hops, maxhops):
     print("make_hops_stats")
     # print("make_hops_stats", Z.device, f"block_size:{block_size}", f"ndim:{Z.size(1)}", f"block bytesize:{Z.element_size()*block_size*Z.size(1):_d}")
     maxhops = int(maxhops)
-    sum_x=torch.zeros(maxhops+2).to(Z.device)
-    sum_x2=torch.zeros(maxhops+2).to(Z.device)
+    sum_N=torch.zeros(maxhops+2).to(Z.device)
+    sum_N2=torch.zeros(maxhops+2).to(Z.device)
 
     i,j = torch.triu_indices(Z.size(0), Z.size(0), offset=1) # offset 1 to exclude self distance
     """Z is node embedding, torch tensor"""
     # empty cuda cache
-    torch.cuda.empty_cache()
+    # gc.collect()
+    # torch.cuda.empty_cache()
     # get available cuda memory
-    available_memory = torch.cuda.get_device_properties(Z.device).total_memory - torch.cuda.memory_allocated(Z.device)
-    block_size = int(available_memory*0.9) // (Z.element_size()*Z.size(1)) # 10GB
-    print(f"available_memory {available_memory//2**30} GB")
-    print(f"block_size {block_size} elements")
-    print(f"block_size {block_size*Z.element_size()*Z.size(1)/2**30} GB")
+    # available_memory = torch.cuda.memory_cached(Z.device) - torch.cuda.memory_allocated(Z.device)
+    available_memory = torch.cuda.get_device_properties(Z.device).total_memory//2
+    block_size = int(available_memory) // (Z.element_size()*Z.size(1)) # 10GB
+    print(f"  available_memory {available_memory/2**30:.2f} GB")
+    print(f"  block_size {block_size} elements. Block count {len(i)//block_size+1}")
+    print(f"  block_size {block_size*Z.element_size()*Z.size(1)/2**30:.2f} GB")
         
-    for b in range(0, len(i), block_size):
-        print(b, b+block_size)
-        i_block = i[b:b+block_size]
-        j_block = j[b:b+block_size]
-        # print(f"block={b}", f"i_block:{i_block[0]}-{i_block[-1]}", f"j_block:{j_block[0]}-{j_block[-1]}")
-        hops_block = hops[i_block, j_block]
-        N_block = torch.norm(Z[j_block] - Z[i_block], dim=-1)
+    while block_size>0:
+        try:
+            for b in range(0, len(i), block_size):
+                i_block = i[b:b+block_size]
+                j_block = j[b:b+block_size]
+                # print(f"block={b}", f"i_block:{i_block[0]}-{i_block[-1]}", f"j_block:{j_block[0]}-{j_block[-1]}")
+                hops_block = hops[i_block, j_block]
+                N_block = torch.norm(Z[j_block] - Z[i_block], dim=-1)
 
-        for h in range(1, maxhops+1):
-            hmask = hops_block==h
-            sum_x[h] += N_block[hmask].sum()
-            sum_x2[h] += (N_block[hmask]**2).sum()
-        # disconnected components
-        hmask = hops_block>maxhops 
-        sum_x[maxhops+1] += N_block[hmask].sum()
-        sum_x2[maxhops+1] += (N_block[hmask]**2).sum()
-        del hops_block, N_block
+                for h in range(1, maxhops+1):
+                    hmask = hops_block==h
+                    sum_N[h] += N_block[hmask].sum()
+                    sum_N2[h] += (N_block[hmask]**2).sum()
+                # disconnected components
+                hmask = hops_block>maxhops 
+                sum_N[maxhops+1] += N_block[hmask].sum()
+                sum_N2[maxhops+1] += (N_block[hmask]**2).sum()
+                del hops_block, N_block
+            break
+        except RuntimeError as e:
+            if('out of memory' in str(e)):
+                block_size = int(block_size/2)
+                print(f"  block_size {block_size} elements. Block count {len(i)//block_size+1}")
+                print(f"  block_size {block_size*Z.element_size()*Z.size(1)/2**30:.2f} GB")
+            
     print("make_hops_stats done")
     s={}
-    s.update({f"hops{h}_mean": (sum_x[h]/(hops==h).sum()).item() for h in range(1, maxhops+1)})
-    s.update({f"hops{h}_std":  (sum_x2[h]/(hops==h).sum() - (sum_x[h]/(hops==h).sum())**2).sqrt().item() for h in range(1, maxhops+1)})
+    s.update({f"hops{h}_mean": (sum_N[h]/(hops==h).sum()).item() for h in range(1, maxhops+1)})
+    s.update({f"hops{h}_std":  (sum_N2[h]/(hops==h).sum() - (sum_N[h]/(hops==h).sum())**2).sqrt().item() for h in range(1, maxhops+1)})
     # disconnected components
     if((hops>maxhops).sum()>0):
-        s[f"hops{maxhops}_mean"] = (sum_x[maxhops]/(hops>maxhops).sum()).item()
-        s[f"hops{maxhops}_std"]  = (sum_x2[maxhops]/(hops>maxhops).sum() - (sum_x[maxhops]/(hops>maxhops).sum())**2).sqrt().item()
+        s[f"hops{maxhops}_mean"] = (sum_N[maxhops]/(hops>maxhops).sum()).item()
+        s[f"hops{maxhops}_std"]  = (sum_N2[maxhops]/(hops>maxhops).sum() - (sum_N[maxhops]/(hops>maxhops).sum())**2).sqrt().item()
     return s
 
 def make_stats_log(model, epoch):
@@ -292,7 +296,7 @@ def process_arguments(
     parser = argparse.ArgumentParser(description='Process command line arguments.')
     parser.add_argument('-d', '--dataset', type=str, default=DEFAULT_DATASET, choices=DATASET_CHOICES, 
                         help='name of the dataset (default: cora)')
-    parser.add_argument('-v', '--fdversion', type=str, default='4', choices=['1','2','3','4','4nodrop'],
+    parser.add_argument('-v', '--fdversion', type=str, default='4', choices=['1','2','3','4','4nodrop', '5'],
                         help='version of the force-directed model (default: 4)')
     parser.add_argument('--outputdir', type=str, default=None, 
                         help=f"output directory (default: {OUTPUTDIR_ROOT}/{EMBEDDING_METHOD}_v{{version}}_{{ndim}}d/{DEFAULT_DATASET})")
@@ -342,13 +346,23 @@ def process_arguments(
         pprint(unknown)
         print("====================================")
         
-    # use default parameter values if required
-    if  (args.fdversion=='1'): args.FDModel = FDModel_1
-    elif(args.fdversion=='2'): args.FDModel = FDModel_2
-    elif(args.fdversion=='3'): args.FDModel = FDModel_3
-    elif(args.fdversion=='4'): args.FDModel = FDModel_4
-    elif(args.fdversion=='4nodrop'): args.FDModel = FDModel_4nodrop
-    
+    # # use default parameter values if required
+    # if  (args.fdversion=='1'): args.FDModel = FDModel_1
+    # elif(args.fdversion=='2'): args.FDModel = FDModel_2
+    # elif(args.fdversion=='3'): args.FDModel = FDModel_3
+    # elif(args.fdversion=='4'): args.FDModel = FDModel_4
+    # elif(args.fdversion=='4nodrop'): args.FDModel = FDModel_4nodrop
+    # elif(args.fdversion=='5'): args.FDModel = FDModel_5
+
+        # use default parameter values if required
+    if  (args.fdversion=='1'): from model_1 import FDModel
+    elif(args.fdversion=='2'): from model_2 import FDModel
+    elif(args.fdversion=='3'): from model_3 import FDModel
+    elif(args.fdversion=='4'): from model_4 import FDModel
+    elif(args.fdversion=='4nodrop'): from model_4nodrop import FDModel
+    elif(args.fdversion=='5'): from model_5 import FDModel
+    args.FDModel = FDModel
+
     if(args.outputdir is None):
         args.outputdir = f"{OUTPUTDIR_ROOT}/{EMBEDDING_METHOD}_v{args.FDModel.VERSION}_{args.ndim}d/{args.dataset}"
     if(args.logfilepath is None):
@@ -432,11 +446,14 @@ if __name__ == '__main__':
     model = args.FDModel(Gx, n_dims=args.ndim, alpha=args.alpha, callbacks=[StatsLog(), EarlyStopping()])
     model.train(epochs=args.epochs, device=device)
     
+    print(f'Embedding completed, dataset={args.dataset}, version={args.fdversion}, ndim={args.ndim}')
+    print(f'Embedding completed, dataset={args.dataset}, version={args.fdversion}, ndim={args.ndim}', file=sys.stderr)
     ##### SAVE EMBEDDINGS #####
     embeddings = model.get_embeddings()
     
 
     pos_dict = dict(zip(Gx.nodes(), model.Z[:,:2].cpu().numpy()))
     nx.draw(Gx, pos=pos_dict, node_size=10, width=0.1, node_color='black', edge_color='gray')
+
 
 # %%
