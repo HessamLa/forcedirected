@@ -20,11 +20,12 @@ elif [ $PARTITION = 'gpu-debug' ]
 fi
 
 
-FD_VERSION='4'
+# FD_VERSION='4'
+FD_VERSION='5'
 PROGRAM_RUN_CMD="python3 main.py --epochs 5000 --fdversion $FD_VERSION"
 
 LOGDIR=./tmplog
-rm -rf "$LOGDIR"
+# rm -rf "$LOGDIR"
 mkdir -p "$LOGDIR"
 
 function program_commands() {
@@ -72,19 +73,22 @@ function run_srun_script() {
   srun $slurm_flags $program_cmd
 }
 
-# # for method in forcedirected node2vec deepwalk line sdne struc2vec; do
-# for method in forcedirected; do
-#   for ndim in 6 12 24 32 64 128; do
-#     for dataset_name in cora citeseer pubmed ego-facebook corafull wiki ; do
-#       run_sbatch_script "$dataset_name" "$ndim" "$method" 
-#     done
-#   done
-# done
 
-for method in forcedirected; do
-  for ndim in 64 128; do
-    for dataset_name in cora ego-facebook ; do
+# run_sbatch_script corafull 24 forcedirected
+
+# for method in forcedirected node2vec deepwalk line sdne struc2vec; do
+for ndim in 24 32 64 128 12; do
+  for method in forcedirected; do
+    for dataset_name in cora citeseer pubmed ego-facebook corafull wiki ; do
       run_sbatch_script "$dataset_name" "$ndim" "$method" 
     done
   done
 done
+
+# for method in forcedirected; do
+#   for ndim in 64 128; do
+#     for dataset_name in cora ego-facebook ; do
+#       run_sbatch_script "$dataset_name" "$ndim" "$method" 
+#     done
+#   done
+# done
