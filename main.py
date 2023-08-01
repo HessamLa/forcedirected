@@ -35,7 +35,7 @@ from forcedirected.Functions import generate_random_points
 from forcedirected.utilityclasses import ForceClass, NodeEmbeddingClass
 from forcedirected.utilityclasses import Model_Base, Callback_Base
 import torch
-torch.autograd.set_grad_enabled(mode=False)
+
 # %%
 log = logging.getLogger(__name__)
 log.setLevel(logging.INFO)
@@ -48,6 +48,7 @@ log.addHandler(ch)
 
 # %%
 import gc
+@torch.no_grad()
 def make_hops_stats_old(Z, hops, maxhops):
     print("make_hops_stats")
     # print("make_hops_stats", Z.device, f"block_size:{block_size}", f"ndim:{Z.size(1)}", f"block bytesize:{Z.element_size()*block_size*Z.size(1):_d}")
@@ -106,6 +107,7 @@ def make_hops_stats_old(Z, hops, maxhops):
         s[f"hops{maxhops}_std"]  = (sum_N2[maxhops]/(hops>maxhops).sum() - (sum_N[maxhops]/(hops>maxhops).sum())**2).sqrt().item()
     return s
 
+@torch.no_grad()
 def make_hops_stats(Z, hops, maxhops):
     maxhops = int(maxhops)    
     with torch.no_grad():    
