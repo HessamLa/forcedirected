@@ -21,13 +21,6 @@ from forcedirected.utilityclasses import ForceClass, NodeEmbeddingClass
 from forcedirected.utilityclasses import Model_Base, Callback_Base
 import torch
 
-# Function to check available GPU memory
-def check_gpu_memory():
-    import gc
-    torch.cuda.empty_cache()
-    gc.collect()
-    return torch.cuda.memory_allocated(), torch.cuda.memory_reserved()
-
 class FDModel(Model_Base):
     """Force Directed Model"""
     VERSION="0004nodrop"
