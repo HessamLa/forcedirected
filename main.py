@@ -35,7 +35,7 @@ from forcedirected.Functions import generate_random_points
 from forcedirected.utilityclasses import ForceClass, NodeEmbeddingClass
 from forcedirected.utilityclasses import Model_Base, Callback_Base
 import torch
-
+torch.autograd.set_grad_enabled(mode=False)
 # %%
 log = logging.getLogger(__name__)
 log.setLevel(logging.INFO)
@@ -48,7 +48,7 @@ log.addHandler(ch)
 
 # %%
 import gc
-def make_hops_stats(Z, hops, maxhops):
+def make_hops_stats_old(Z, hops, maxhops):
     print("make_hops_stats")
     # print("make_hops_stats", Z.device, f"block_size:{block_size}", f"ndim:{Z.size(1)}", f"block bytesize:{Z.element_size()*block_size*Z.size(1):_d}")
     maxhops = int(maxhops)
@@ -79,8 +79,11 @@ def make_hops_stats(Z, hops, maxhops):
 
                 for h in range(1, maxhops+1):
                     hmask = hops_block==h
-                    sum_N[h] += N_block[hmask].sum()
-                    sum_N2[h] += (N_block[hmask]**2).sum()
+                    sum_N.add_(N_block[hmask].sum())
+                    sum_N2.add_((N_block[hmask]**2).sum())
+                    
+                    # sum_N[h] += N_block[hmask].sum()
+                    # sum_N2[h] += (N_block[hmask]**2).sum()
                 # disconnected components
                 hmask = hops_block>maxhops 
                 sum_N[maxhops+1] += N_block[hmask].sum()
@@ -103,6 +106,50 @@ def make_hops_stats(Z, hops, maxhops):
         s[f"hops{maxhops}_std"]  = (sum_N2[maxhops]/(hops>maxhops).sum() - (sum_N[maxhops]/(hops>maxhops).sum())**2).sqrt().item()
     return s
 
+def make_hops_stats(Z, hops, maxhops):
+    maxhops = int(maxhops)    
+    with torch.no_grad():    
+        sum_N = torch.zeros(maxhops+2, device=Z.device)
+        sum_N2 = torch.zeros(maxhops+2, device=Z.device)
+        i,j = torch.triu_indices(Z.size(0), Z.size(0), offset=1) 
+        
+        available_memory = torch.cuda.get_device_properties(Z.device).total_memory//2
+        block_size = int(available_memory) // (Z.element_size()*Z.size(1)) # 10GB
+        print(f"  available_memory {available_memory/2**30:.2f} GB")
+        print(f"  block_size {block_size} elements. Block count {len(i)//block_size+1}")
+        print(f"  block_size {block_size*Z.element_size()*Z.size(1)/2**30:.2f} GB")
+        # block_size = 1024 # adjust as needed
+        while block_size > 0:
+            try:
+                for b in range(0, len(i), block_size):
+                    i_block = i[b:b+block_size] 
+                    j_block = j[b:b+block_size]            
+                    Z_i = Z[i_block]
+                    Z_j = Z[j_block]            
+                    hops_block = hops[i_block, j_block]             
+                    N2_block = torch.sum((Z_i - Z_j)**2, dim=-1) # squared norms                    
+                    for h in range(1, maxhops+1):                    
+                        hmask = (hops_block == h)                        
+                        sum_N[h].add_(N2_block[hmask].sum().sqrt()) # sqrt of sum
+                        sum_N2[h].add_(N2_block[hmask].sum())             
+                    # disconnected components
+                    hmask = (hops_block > maxhops)  
+                    sum_N[maxhops+1].add_(N2_block[hmask].sum().sqrt())
+                    sum_N2[maxhops+1].add_(N2_block[hmask].sum())
+                break            
+            except RuntimeError as e:
+                if 'out of memory' in str(e):
+                    block_size //= 2       
+                    print(f"  new block_size {block_size*Z.element_size()*Z.size(1)/2**30:.2f} GB")
+    print("make_hops_stats optimized done")
+
+    s = {}
+    s.update({f"hops{h}_mean": (sum_N[h]/(hops==h).sum()).item() for h in range(1, maxhops+1)})
+    s.update({f"hops{h}_std": (sum_N2[h]/(hops==h).sum() - (sum_N[h]/((hops==h).sum()))**2).sqrt().item() for h in range(1, maxhops+1)})
+    if ((hops > maxhops).sum() > 0):
+        s[f"hops{maxhops}_mean"] = (sum_N[maxhops]/(hops>maxhops).sum()).item()
+        s[f"hops{maxhops}_std"] = (sum_N2[maxhops]/(hops>maxhops).sum() - (sum_N[maxhops]/((hops>maxhops).sum()))**2).sqrt().item()
+    return s
 def make_stats_log(model, epoch):
     logstr = ''
     s = {'epoch': epoch}
