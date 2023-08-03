@@ -162,7 +162,8 @@ class FDModel(Model_Base):
             
             @optimize_batch_size
             def run_batches(obj, row_batch_size=row_batch_size, max_batch_size=max_batch_size, **kwargs):
-                kwargs['batches'] = (obj.Z.shape[0] + row_batch_size - 1)//row_batch_size
+                kwargs['batches'] = int(obj.Z.shape[0]//row_batch_size +0.5)
+                print(f" batch count: {kwargs['batches']}, max batch count: {int(obj.Z.shape[0]//max_batch_size+0.5)}")
                 for i, bmask in enumerate (batchify(list(range(obj.Z.shape[0])), batch_size=row_batch_size)):
                     # batch begin
                     kwargs['batch'] = i+1
@@ -172,12 +173,7 @@ class FDModel(Model_Base):
                     
                     ###################################
                     # this is the forward pass
-                    # add the noise, with std proportional to relocation along each dimension
-                    # std_=torch.abs(obj.dZ[bmask])/2
-                    # obj.Z[bmask] += torch.abs(torch.normal(mean=0.0, std=std_))*torch.sign(obj.dZ[bmask])
                     
-                    # obj.Z[bmask] += torch.normal(mean=0.0, std=torch.abs(obj.dZ[bmask])/3)
-
                     D, N, unitD = do_pairwise(obj.Z[bmask], obj.Z)
                     # print(D.shape, N.shape, unitD.shape)
                     obj.Fa[bmask] = obj.fmodel_attr(D, N, unitD, alpha_hops=obj.alpha_hops[bmask,:]) # pass the current model (with its contained embeddings) to calculate the force
@@ -200,9 +196,7 @@ class FDModel(Model_Base):
             self.dZ = torch.where(self.degrees[..., None] != 0, 
                                     F / self.degrees[..., None], 
                                     torch.zeros_like(F))
-            # relocs = torch.norm(self.dZ, dim=1)
-            # print(f'relocs: {relocs.sum():,.3f}({relocs.mean():.5f})')
-            # self.embeddings.update(self.dZ)
+            self.dZ = torch.div(self.dZ**2, self.dZ.max(dim=-1, keepdim=True)[0]) # to induce skewness in relocations, does it help?
             self.Z += self.dZ
         
             #### FIX ME. ForceClass should be able to work with batch methods

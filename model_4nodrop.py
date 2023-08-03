@@ -148,8 +148,8 @@ class FDModel(Model_Base):
             
             @optimize_batch_size
             def run_batches(obj, row_batch_size=row_batch_size, max_batch_size=max_batch_size, **kwargs):
-                torch.cuda.empty_cache()
-                kwargs['batches'] = (obj.Z.shape[0] + row_batch_size - 1)//row_batch_size
+                kwargs['batches'] = int(obj.Z.shape[0]//row_batch_size +0.5)
+                print(f" batch count: {kwargs['batches']}, max batch count: {int(obj.Z.shape[0]//max_batch_size+0.5)}")
                 for i, bmask in enumerate (batchify(list(range(obj.Z.shape[0])), batch_size=row_batch_size)):
                     # batch begin
                     kwargs['batch'] = i+1
