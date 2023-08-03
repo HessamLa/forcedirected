@@ -98,7 +98,7 @@ class FDModel(Model_Base):
             # epoch begin
             kwargs['epoch'] = epoch
             self.notify_epoch_begin_callbacks(**kwargs)
-            self.notify_batch_begin_callbacks(**kwargs)
+            # self.notify_batch_begin_callbacks(**kwargs)
             
             print(f'Epoch {epoch+1}/{epochs}')
             ###################################
@@ -128,7 +128,7 @@ class FDModel(Model_Base):
             ###################################
 
             # batch ends
-            self.notify_batch_end_callbacks(**kwargs)
+            # self.notify_batch_end_callbacks(**kwargs)
             self.notify_epoch_end_callbacks(**kwargs)
         # epoch ends            
         
