@@ -11,6 +11,8 @@ import os
 from forcedirected.utilities.loaders import load_stats
 import pandas as pd
 import matplotlib.pyplot as plt
+from forcedirected.utilities.RecursiveNamespace import RecursiveNamespace as rn
+
 
 
 def plot_stats(method, dataset, statspath, ax=None, epoch_range=None):
@@ -66,25 +68,25 @@ def plot_stats(method, dataset, statspath, ax=None, epoch_range=None):
 base_dir = 'embeddings-tmp'
 
 # Iterate over subfolders
+paths=[]
 for method in os.listdir(base_dir):
     #     if('v0003' not in method): continue
     method_dir = os.path.join(base_dir, method)
 
     if os.path.isdir(method_dir):
         for dataset in os.listdir(method_dir):
-            if ('128d' not in method):
-                continue
-            if ('cora' not in dataset and 'citeseer' not in dataset):
-                continue
-            if ('corafull' in dataset):
-                continue
-
             dataset_dir = os.path.join(method_dir, dataset)
-            print(dataset_dir)
             stats_path = os.path.join(dataset_dir, 'stats.csv')
+            
+            paths.append(rn(method=method, dataset=dataset, stats_path=stats_path))
 
-            if os.path.isfile(stats_path):
-                plot_stats(method, dataset, stats_path)
+for p in paths:
+    if('cora' not in p.stats_path or 'corafull' in p.stats_path): continue
+    if('v0005' not in p.stats_path): continue
+    if('_128d' not in p.stats_path): continue
+    print(p)
+    if os.path.isfile(p.stats_path):
+        plot_stats(p.method, p.dataset, p.stats_path)
 
 
 # %%

@@ -14,17 +14,12 @@ class NodeEmbeddingClass:
         ''''
         Calculates the pairwise differences (D) and distances (N) and unit direction vectors (unitD).
         '''
-        print("NodeEmbeddingClass.update() self.D = ...")
         self.D = pairwise_difference(self.Z) # D[i,j] = Z[i] - Z[j]
-        print("NodeEmbeddingClass.update() self.N = ...")
         self.N = torch.norm(self.D, dim=-1)     # pairwise distance between points
         # Element-wise division with mask
-        print("NodeEmbeddingClass.update() self.unitD = ...")
         self.unitD = torch.zeros_like(self.D)   # unit direction
         mask = self.N!=0 
-        print("NodeEmbeddingClass.update() self.unitD division...")
         self.unitD[mask] = self.D[mask] / self.N[mask].unsqueeze(-1)
-        print("NodeEmbeddingClass.update() done.")
     
     def set(self, Z):
         if(type(Z) is not torch.Tensor):

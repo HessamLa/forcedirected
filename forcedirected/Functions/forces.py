@@ -166,7 +166,7 @@ def attractive_force_ahops(D, N, unitD, alpha_hops, k1=1, k2=1, return_sum=True)
     unitD (n,n,d) is the unit direction, D/N
 
     alpha_hops (n,n) is the coefficient for each hop-distant neighbor
-        alpha_hops[i,j] = alpha^(h-1) where h is hops-distance between i,j
+        alpha_hops[i,j] = alpha^(h-1)/n where h is hops-distance between i,j
     k1 is amplitude factor: k1*f(x)
     k2 is intensity factor factor over distance: f(x^k2)
     """

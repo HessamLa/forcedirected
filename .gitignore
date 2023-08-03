@@ -1,3 +1,11 @@
+# forcedirected project specific
+datasets
+embeddings*
+tmplog
+test*
+images
+#embeddings*/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
