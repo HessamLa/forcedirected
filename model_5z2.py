@@ -59,8 +59,6 @@ class FDModel(Model_Base):
         np.fill_diagonal(self.alpha_hops, 0)
         # test 2
         # self.alpha_hops = np.apply_along_axis(get_alpha_hops, axis=1, arr=self.hops, alpha=self.alpha)
-
-        print(self.alpha_hops.max(), self.alpha_hops.min())
         
         self.random_points_generator = random_points_generator
         self.Z = torch.tensor(self.random_points_generator(self.n_nodes, self.n_dims), )
@@ -131,11 +129,12 @@ class FDModel(Model_Base):
                     max_batch_size = kwargs.get('max_batch_size')
                     if row_batch_size<max_batch_size: # row_batch_size was the last successful batch size
                         min_batch_size = row_batch_size
+                        # upgrade row_batch_size
+                        row_batch_size = (row_batch_size + max_batch_size + 1)//2
+                        # print(f"Test new batch size ({min_batch_size},{row_batch_size},{max_batch_size})", file=sys.stderr)
                     else:                        # either row_batch_size was the last unsuccessful batch size or it is to be determined
                         min_batch_size = None
                     
-                    # upgrade row_batch_size
-                    row_batch_size = (row_batch_size + max_batch_size + 1)//2
 
                     while True:
                         try:
@@ -163,7 +162,6 @@ class FDModel(Model_Base):
             @optimize_batch_size
             def run_batches(obj, row_batch_size=row_batch_size, max_batch_size=max_batch_size, **kwargs):
                 kwargs['batches'] = int(obj.Z.shape[0]//row_batch_size +0.5)
-                print(f" batch count: {kwargs['batches']}, max batch count: {int(obj.Z.shape[0]//max_batch_size+0.5)}")
                 for i, bmask in enumerate (batchify(list(range(obj.Z.shape[0])), batch_size=row_batch_size)):
                     # batch begin
                     kwargs['batch'] = i+1
@@ -185,6 +183,9 @@ class FDModel(Model_Base):
                 return row_batch_size, max_batch_size
             
             row_batch_size, max_batch_size = run_batches(self, row_batch_size=row_batch_size, max_batch_size=max_batch_size, **kwargs)
+            kwargs['batch_size'] = row_batch_size
+            kwargs['batches'] = int(self.Z.shape[0]//row_batch_size +0.5)
+            
             ### JUST A HACK, We need this hack to avoid indexing problem with the statslog callback
             self.fmodel_attr.F = self.Fa
             self.fmodel_repl.F = self.Fr
@@ -196,7 +197,20 @@ class FDModel(Model_Base):
             self.dZ = torch.where(self.degrees[..., None] != 0, 
                                     F / self.degrees[..., None], 
                                     torch.zeros_like(F))
-            self.dZ = torch.div(self.dZ**2, self.dZ.max(dim=-1, keepdim=True)[0]) # to induce skewness in relocations, does it help?
+            
+            # skew each row vector towards the direction of the row's max
+
+
+            # to induce skewness in relocations, does it help?
+            # calculate skewed direction
+            dZ_skewed = self.dZ*torch.abs(self.dZ)/torch.abs(self.dZ).max(dim=-1, keepdim=True)[0] 
+            dZ_snorm = dZ_skewed.norm(dim=1, keepdim=True)
+            # get the unit direction for skewed direction
+            dZ_sunit = torch.where(dZ_snorm!=0, dZ_skewed / dZ_snorm, torch.zeros_like(dZ_snorm))
+
+            # Align each row of dZ with corresponding row of dZ_skewed
+            self.dZ = dZ_sunit * torch.norm(self.dZ, dim=-1, keepdim=True)
+            
             self.Z += self.dZ
         
             #### FIX ME. ForceClass should be able to work with batch methods

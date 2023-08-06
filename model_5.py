@@ -190,6 +190,9 @@ class FDModel(Model_Base):
                 return row_batch_size, max_batch_size
             
             row_batch_size, max_batch_size = run_batches(self, row_batch_size=row_batch_size, max_batch_size=max_batch_size, **kwargs)
+            kwargs['batch_size'] = row_batch_size
+            kwargs['batches'] = int(self.Z.shape[0]//row_batch_size +0.5)
+
             ### JUST A HACK, We need this hack to avoid indexing problem with the statslog callback
             self.fmodel_attr.F = self.Fa
             self.fmodel_repl.F = self.Fr
