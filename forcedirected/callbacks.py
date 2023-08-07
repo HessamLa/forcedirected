@@ -1,4 +1,5 @@
 
+import os
 import sys
 import pickle
 import pandas as pd
@@ -70,40 +71,39 @@ def make_hops_stats_old(Z, hops, maxhops):
 def make_hops_stats(Z, hops, maxhops):
     print("make_hops_stats optimized started")
     maxhops = int(maxhops)    
-    with torch.no_grad():    
-        sum_N = torch.zeros(maxhops+2, device=Z.device)
-        sum_N2 = torch.zeros(maxhops+2, device=Z.device)
-        i,j = torch.triu_indices(Z.size(0), Z.size(0), offset=1) 
-        
-        if(torch.cuda.is_available()):
-            available_memory = torch.cuda.get_device_properties(Z.device).total_memory//2
-            block_size = int(available_memory) // (Z.element_size()*Z.size(1)) # 10GB
-        else:
-            block_size = len(i)
-        print(f"  block_size {block_size*Z.element_size()*Z.size(1)/2**30:.2f} GB. Block count {int(len(i)//block_size+0.5)}")
-        # block_size = 1024 # adjust as needed
-        while block_size > 0:
-            try:
-                for b in range(0, len(i), block_size):
-                    i_block = i[b:b+block_size] 
-                    j_block = j[b:b+block_size]            
-                    Z_i = Z[i_block]
-                    Z_j = Z[j_block]            
-                    hops_block = hops[i_block, j_block]             
-                    N2_block = torch.sum((Z_i - Z_j)**2, dim=-1) # squared norms                    
-                    for h in range(1, maxhops+1):                    
-                        hmask = (hops_block == h)                        
-                        sum_N[h].add_(N2_block[hmask].sum().sqrt()) # sqrt of sum
-                        sum_N2[h].add_(N2_block[hmask].sum())             
-                    # disconnected components
-                    hmask = (hops_block > maxhops)  
-                    sum_N[maxhops+1].add_(N2_block[hmask].sum().sqrt())
-                    sum_N2[maxhops+1].add_(N2_block[hmask].sum())
-                break            
-            except RuntimeError as e:
-                if 'out of memory' in str(e):
-                    block_size //= 2       
-                    print(f"  new block_size {block_size*Z.element_size()*Z.size(1)/2**30:.2f} GB")
+    sum_N = torch.zeros(maxhops+2, device=Z.device)
+    sum_N2 = torch.zeros(maxhops+2, device=Z.device)
+    i,j = torch.triu_indices(Z.size(0), Z.size(0), offset=1) 
+    
+    if(torch.cuda.is_available()):
+        available_memory = torch.cuda.get_device_properties(Z.device).total_memory//2
+        block_size = int(available_memory) // (Z.element_size()*Z.size(1)) # 10GB
+    else:
+        block_size = len(i)
+    print(f"  block_size {block_size*Z.element_size()*Z.size(1)/2**30:.2f} GB. Block count {int(len(i)//block_size+0.5)}")
+    # block_size = 1024 # adjust as needed
+    while block_size > 0:
+        try:
+            for b in range(0, len(i), block_size):
+                i_block = i[b:b+block_size] 
+                j_block = j[b:b+block_size]            
+                Z_i = Z[i_block]
+                Z_j = Z[j_block]            
+                hops_block = hops[i_block, j_block]             
+                N2_block = torch.sum((Z_i - Z_j)**2, dim=-1) # squared norms                    
+                for h in range(1, maxhops+1):                    
+                    hmask = (hops_block == h)                        
+                    sum_N[h].add_(N2_block[hmask].sqrt()) # sqrt of sum
+                    sum_N2[h].add_(N2_block[hmask].sum())             
+                # disconnected components
+                hmask = (hops_block > maxhops)  
+                sum_N[maxhops+1].add_(N2_block[hmask].sqrt().sum())
+                sum_N2[maxhops+1].add_(N2_block[hmask].sum())
+            break            
+        except RuntimeError as e:
+            if 'out of memory' in str(e):
+                block_size //= 2       
+                print(f"  new block_size {block_size*Z.element_size()*Z.size(1)/2**30:.2f} GB")
     print("make_hops_stats optimized done")
 
     s = {}
@@ -157,8 +157,7 @@ def make_stats_log(model, epoch):
         if(type(v) is torch.Tensor):
             s[k] = v.item()
 
-    logstr = f'{epoch}| '
-    logstr+= f"attr:{s['fa-sum']:<9.3f}({s['fa-mean']:.3f})  "
+    logstr = f"attr:{s['fa-sum']:<9.3f}({s['fa-mean']:.3f})  "
     logstr+= f"repl:{s['fr-sum']:<9.3f}({s['fr-mean']:.3f})  "
     logstr+= f"wattr:{s['wfa-sum']:<9.3f}({s['wfa-mean']:.3f})  "
     logstr+= f"wrepl:{s['wfr-sum']:<9.3f}({s['wfr-mean']:.3f})  "
@@ -172,10 +171,14 @@ class StatsLog (Callback_Base):
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self.args=kwargs['args']
-        self.emb_filepath = f"{self.args.outputdir}/{self.args.outputfilename}" # the path to store the latest embedding
+        self.emb_filepath_tmp = f"{self.args.outputdir}/{self.args.outputfilename}.tmp" # the path to store the latest embedding
+        self.emb_filepath = f"{self.args.outputdir}/{self.args.outputfilename}" # the path to store the final embedding
+        os.system(f"rm -f {self.emb_filepath_tmp} {self.emb_filepath}") # remove the old embedding files
+
         self.hist_filepath = f"{self.args.outputdir}/{self.args.historyfilename}" # the path to APPEND the latest embedding
         self.stats_filepath = f"{self.args.outputdir}/{self.args.statsfilename}" # the path to save the latest stats
         self.save_history_every = self.args.save_history_every
+        self.save_stats_every = 1
         self.statsdf = pd.DataFrame()
         # self.logger = ReportLog(self.args.logfilepath)
         
@@ -201,7 +204,7 @@ class StatsLog (Callback_Base):
         emb = fd_model.get_embeddings()
         # save embeddings as pandas df
         df = pd.DataFrame(emb, index=fd_model.Gx.nodes())
-        df.to_pickle(self.emb_filepath)
+        df.to_pickle(self.emb_filepath_tmp) # save to temporary file. will be renamed in train done
     
     def save_history(self, fd_model, **kwargs):
         emb = fd_model.get_embeddings()
@@ -211,8 +214,7 @@ class StatsLog (Callback_Base):
 
     def update_stats(self, fd_model, epoch, **kwargs):
         # make stats and logs
-        stats, logstr = make_stats_log(fd_model, epoch)
-        self.statlog.info(logstr) # FIX THIS
+        stats, statstr = make_stats_log(fd_model, epoch)
 
         # make the stats as dataframe
         if(len(self.statsdf) == 0):  # new dataframe
@@ -227,14 +229,17 @@ class StatsLog (Callback_Base):
         self.statsdf.to_csv(self.stats_filepath, index=False)
         # Rename the temporary file to the final filename
         # os.rename(temp_filename, self.stats_filepath)
+        logstr = f"Epoch {epoch+1}/{kwargs['epochs']}  ({kwargs['batches']} batches) | {statstr}"
+        self.statlog.info(logstr) # FIX THIS
 
     def on_epoch_begin(self, fd_model, epoch, epochs, **kwargs):
         self.statlog.debug(f'Epoch {epoch+1}/{epochs}')
         # return super().on_batch_begin(fd_model, epoch, **kwargs)
 
     def on_epoch_end(self, fd_model, epoch, **kwargs):
-        self.update_stats(fd_model, epoch, **kwargs)
         self.save_embeddings(fd_model, **kwargs)
+        if(epoch % self.save_stats_every == 0):
+            self.update_stats(fd_model, epoch, **kwargs)
         if(epoch % self.save_history_every == 0):
             self.save_history(fd_model, **kwargs)
             
@@ -246,6 +251,11 @@ class StatsLog (Callback_Base):
         self.statlog.debug("Final save")
         self.save_embeddings(fd_model, **kwargs)
         self.save_history(fd_model, **kwargs)
+
+        # rename the temporary embedding file
+        # os.rename(self.emb_filepath_tmp, self.emb_filepath)
+        # I don't trust os.rename. So I use system command instead
+        os.system(f"mv {self.emb_filepath_tmp} {self.emb_filepath}")
         
 class EarlyStopping (Callback_Base):
     def __init__(self, **kwargs) -> None:
