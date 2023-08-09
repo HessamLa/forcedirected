@@ -82,45 +82,19 @@ def make_hops_stats(Z, hops, maxhops, batch_count=1, *args, **kwargs):
     print(f"make_hops_stats-optimized started with batch_count={batch_count}")
     maxhops = int(maxhops)    
     i,j = torch.triu_indices(Z.size(0), Z.size(0), offset=1) 
-    
-    # if(torch.cuda.is_available()):
-    #     available_memory = torch.cuda.get_device_properties(Z.device).total_memory//2
-    #     block_size = int(available_memory) // (Z.element_size()*Z.size(1)) # 10GB
-    # else:
-    #     block_size = len(i)
-    block_size = int(len(i)/batch_count + 0.5)
-    # block_size = 1024 # adjust as needed
-    # while block_size > 0:
-    #     try:
-    #         for b in range(0, len(i), block_size):
-    #             i_block = i[b:b+block_size] 
-    #             j_block = j[b:b+block_size]            
-    #             Z_i = Z[i_block]
-    #             Z_j = Z[j_block]            
-    #             hops_block = hops[i_block, j_block]             
-    #             N2_block = torch.sum((Z_i - Z_j)**2, dim=-1) # squared norms                    
-    #             for h in range(1, maxhops+1):                    
-    #                 hmask = (hops_block == h)                        
-    #                 sum_N[h].add_(N2_block[hmask].sqrt().sum()) # sqrt of sum
-    #                 sum_N2[h].add_(N2_block[hmask].sum())             
-    #             # disconnected components
-    #             hmask = (hops_block > maxhops)  
-    #             sum_N[maxhops+1].add_(N2_block[hmask].sqrt().sum())
-    #             sum_N2[maxhops+1].add_(N2_block[hmask].sum())
-    #         break            
-    #     except RuntimeError as e:
-    #         if 'out of memory' in str(e):
-    #             block_size //= 2       
-    #             print(f"  new block_size {block_size*Z.element_size()*Z.size(1)/2**30:.2f} GB")
-    #############################################
+    hops_triu = hops[i,j]
+
     sum_N = torch.zeros(maxhops+2, device=Z.device)
     sum_N2 = torch.zeros(maxhops+2, device=Z.device)
+    
+    block_size = int(len(i)/batch_count + 0.5)
     for b in range(0, len(i), block_size):
         i_block = i[b:b+block_size] 
         j_block = j[b:b+block_size]            
         Z_i = Z[i_block]
         Z_j = Z[j_block]            
-        hops_block = hops[i_block, j_block]             
+        # hops_block = hops[i_block, j_block]             
+        hops_block = hops_triu[b:b+block_size]
         N2_block = torch.sum((Z_i - Z_j)**2, dim=-1) # squared norms                    
         for h in range(1, maxhops+1):                    
             hmask = (hops_block == h)                        
@@ -130,16 +104,31 @@ def make_hops_stats(Z, hops, maxhops, batch_count=1, *args, **kwargs):
         hmask = (hops_block > maxhops)  
         sum_N[maxhops+1].add_(N2_block[hmask].sqrt().sum())
         sum_N2[maxhops+1].add_(N2_block[hmask].sum())    
-    print(f"  block_size {block_size*Z.element_size()*Z.size(1)/2**30:.2f} GB. Block count {batch_count}")
-    print("make_hops_stats-optimized done")
+    # print(f"  block_size {block_size*Z.element_size()*Z.size(1)/2**30:.2f} GB. Block count {batch_count}")
+    # print("make_hops_stats-optimized done")
 
     s = {}
-    s.update({f"hops{h}_mean": (sum_N[h]/(hops==h).sum()).item() for h in range(1, maxhops+1)})
-    s.update({f"hops{h}_std": (sum_N2[h]/(hops==h).sum() - (sum_N[h]/(hops==h).sum())**2).sqrt().item() for h in range(1, maxhops+1)})
-    if ((hops > maxhops).sum() > 0):
-        s[f"hopsinf_mean"] = (sum_N[maxhops+1]/(hops>maxhops+1).sum()).item()
-        s[f"hopsinf_std"] = (sum_N2[maxhops+1]/(hops>maxhops+1).sum() - (sum_N[maxhops+1]/((hops>maxhops+1).sum()))**2).sqrt().item()
+    for h in range(1, maxhops+1):
+        n = (hops_triu==h).sum()
+        smean = sum_N[h]/n
+        s.update({f"hops{h}_mean": smean.item()})
+        if(n>1):
+            sstd = (sum_N2[h]/n - smean**2).sqrt()
+            s.update({f"hops{h}_std": sstd.item()})
+        else:
+            s.update({f"hops{h}_std": 0.0})
+    # disconnected components
+    n = (hops_triu>maxhops).sum()
+    smean = sum_N[h]/n
+    s.update({f"hopsinf_mean": smean.item()})
+    if(n>1):
+        sstd = (sum_N2[h]/n - smean**2).sqrt()
+        s.update({f"hopsinf_std": sstd.item()})
+    else:
+        s.update({f"hopsinf_std": 0.0})
+
     return s
+    
 def make_stats_log(model, epoch):
     logstr = ''
     s = {'epoch': epoch}
