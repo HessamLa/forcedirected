@@ -30,13 +30,14 @@ def process_arguments(
                 DEFAULT_DATASET='ego-facebook',
                 OUTPUTDIR_ROOT='./embeddings-tmp',
                 DATASET_CHOICES=['tinygraph', 'cora', 'citeseer', 'pubmed', 'ego-facebook', 'corafull', 'wiki', 'blogcatalog', 'flickr', 'youtube'],
+                MODEL_VERSION_CHOICES=['1','2','3','4','4nodrop', '5', '5z2'],
                 NDIM=128, ALPHA=0.3,
                 ):
     
     parser = argparse.ArgumentParser(description='Process command line arguments.')
     parser.add_argument('-d', '--dataset', type=str, default=DEFAULT_DATASET, choices=DATASET_CHOICES, 
                         help='name of the dataset (default: cora)')
-    parser.add_argument('-v', '--fdversion', type=str, default='4', choices=['1','2','3','4','4nodrop', '5'],
+    parser.add_argument('-v', '--fdversion', type=str, default='4', choices=MODEL_VERSION_CHOICES,
                         help='version of the force-directed model (default: 4)')
     parser.add_argument('--outputdir_root', type=str, default=OUTPUTDIR_ROOT, 
                         help=f"Root output directory (default: {OUTPUTDIR_ROOT}")
@@ -87,6 +88,7 @@ def process_arguments(
         print("THERE ARE UNKNOWN ARGUMENTS PASSED:")
         pprint(unknown)
         print("====================================")
+        input("Enter a key to continue...")
         
     # # use default parameter values if required
     # if  (args.fdversion=='1'): args.FDModel = FDModel_1
@@ -103,6 +105,7 @@ def process_arguments(
     elif(args.fdversion=='4'):          from model_4 import FDModel
     elif(args.fdversion=='4nodrop'):    from model_4nodrop import FDModel
     elif(args.fdversion=='5'):          from model_5 import FDModel
+    elif(args.fdversion=='5z2'):          from model_5z2 import FDModel
     args.FDModel = FDModel
 
     if(args.outputdir is None):
@@ -187,15 +190,16 @@ if __name__ == '__main__':
     ##### START EMBEDDING #####    
     model = args.FDModel(Gx, n_dims=args.ndim, alpha=args.alpha, callbacks=[StatsLog(args=args), EarlyStopping()])
     model.train(epochs=args.epochs, device=device)
-    
+    with open(args.outputdir+'/done.txt', 'w') as f:
+        f.write('done')
     print(f'Embedding completed, dataset={args.dataset}, version={args.fdversion}, ndim={args.ndim}')
     print(f'Embedding completed, dataset={args.dataset}, version={args.fdversion}, ndim={args.ndim}', file=sys.stderr)
     ##### SAVE EMBEDDINGS #####
     embeddings = model.get_embeddings()
     
 
-    pos_dict = dict(zip(Gx.nodes(), model.Z[:,:2].cpu().numpy()))
-    nx.draw(Gx, pos=pos_dict, node_size=10, width=0.1, node_color='black', edge_color='gray')
+    # pos_dict = dict(zip(Gx.nodes(), model.Z[:,:2].cpu().numpy()))
+    # nx.draw(Gx, pos=pos_dict, node_size=10, width=0.1, node_color='black', edge_color='gray')
 
 
 # %%
