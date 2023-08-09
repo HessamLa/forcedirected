@@ -66,6 +66,8 @@ def plot_stats(method, dataset, statspath, ax=None, epoch_range=None):
 
 # Directory where the embeddings and statistics are stored
 base_dir = 'embeddings-tmp'
+base_dir = 'embeddings-gpu-bigred200'
+base_dir = 'embeddings-gpu-carbonate'
 
 # Iterate over subfolders
 paths=[]
@@ -81,14 +83,16 @@ for method in os.listdir(base_dir):
             paths.append(rn(method=method, dataset=dataset, stats_path=stats_path))
 
 for p in paths:
-    if('cora' not in p.stats_path or 'corafull' in p.stats_path): continue
+    # if('cora' not in p.stats_path or 'corafull' in p.stats_path): continue
+    if('wiki' not in p.stats_path or 'corafull' in p.stats_path): continue
     if('v0005' not in p.stats_path): continue
     if('_128d' not in p.stats_path): continue
     print(p)
     if os.path.isfile(p.stats_path):
         plot_stats(p.method, p.dataset, p.stats_path)
 
-
+# %%
+plot_stats('v4', 'cora test', '/N/u/hessamla/BigRed200/gnn/forcedirected/testdir/cora_128/stats.csv')
 # %%
 import matplotlib.pyplot as plt
 import numpy as np

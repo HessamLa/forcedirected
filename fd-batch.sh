@@ -3,6 +3,7 @@
 # FD_VERSION='4'
 # FD_VERSION='4nodrop'
 FD_VERSION='5'
+# FD_VERSION='5z2'
 PROGRAM_RUN_CMD="python3 main.py --epochs 5000 --fdversion $FD_VERSION"
 
 if [ $# -eq 0 ]
