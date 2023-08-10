@@ -129,10 +129,23 @@ def make_hops_stats(Z, hops, maxhops, batch_count=1, *args, **kwargs):
 
     return s
     
+def make_force_stats(model):
+    summary_stats = lambda x: (torch.sum(x).item(), torch.mean(x).item(), torch.std(x).item())
+    s={}
+    fsum=torch.zeros_like(model.forces[0])
+    for f in model.forces:
+        s[f'{f.name}-sum'], s[f'{f.name}-mean'], s[f'{f.name}-std'] = summary_stats( torch.norm(forces[f], dim=1) )
+        s[f'{f.name}-sum-w'], s[f'{f.name}-mean-w'], s[f'{f.name}-std-w'] = summary_stats( torch.norm(forces[f], dim=1) )*model.degrees
+        fall += f
+
+    # s['f-sum'] = torch.norm(fsum, dim=-1).sum().item()
+    # s['f-sum-w'] = torch.norm(fsum*model.degrees[:, None], dim=-1).sum().item()
+    # s['f-sum-mag'] = torch.norm(fsum, dim=1).sum().item()
+    return s
+
 def make_stats_log(model, epoch):
     logstr = ''
     s = {'epoch': epoch}
-
     s.update(make_hops_stats(model.Z, model.hops, model.maxhops))
 
     summary_stats = lambda x: (torch.sum(x).item(), torch.mean(x).item(), torch.std(x).item())
@@ -245,7 +258,7 @@ class StatsLog (Callback_Base):
         self.statsdf.to_csv(self.stats_filepath, index=False)
         # Rename the temporary file to the final filename
         # os.rename(temp_filename, self.stats_filepath)
-        logstr = f"Epoch {epoch+1}/{kwargs['epochs']}  ({kwargs['batches']} batches) | {statstr}"
+        logstr = f"Epoch {epoch+1}/{kwargs['epochs']}  ({kwargs['batch_count']} batches) | {statstr}"
         self.statlog.info(logstr) # FIX THIS
 
     def on_epoch_begin(self, fd_model, epoch, epochs, **kwargs):
@@ -253,6 +266,7 @@ class StatsLog (Callback_Base):
         # return super().on_batch_begin(fd_model, epoch, **kwargs)
 
     def on_epoch_end(self, fd_model, epoch, **kwargs):
+        self.statlog.debug(f"   Batch size: {kwargs['batch_size']}")
         self.save_embeddings(fd_model, **kwargs)
         if(epoch % self.save_stats_every == 0):
             self.update_stats(fd_model, epoch, **kwargs)
@@ -260,7 +274,7 @@ class StatsLog (Callback_Base):
             self.save_history(fd_model, **kwargs)
             
     def on_batch_end(self, fd_model, batch, **kwargs):
-        self.statlog.debug(f"   Batch {batch}/{kwargs['batches']} ({kwargs['row_batch_size']}/{kwargs['max_batch_size']})")
+        self.statlog.debug(f"   Batch {batch}/{kwargs['batch_count']}")
         # return super().on_batch_begin(fd_model, batch, **kwargs)
 
     def on_train_end(self, fd_model, epochs, **kwargs):
@@ -273,16 +287,3 @@ class StatsLog (Callback_Base):
         # I don't trust os.rename. So I use system command instead
         os.system(f"mv {self.emb_filepath_tmp} {self.emb_filepath}")
         
-class EarlyStopping (Callback_Base):
-    def __init__(self, **kwargs) -> None:
-        super().__init__(**kwargs)
-
-    def on_epoch_end(self, fd_model, epoch, **kwargs):
-        Fa = torch.norm(fd_model.fmodel_attr.F, dim=1)
-        Fa = torch.sum(Fa).item()
-        Fr = torch.norm(fd_model.fmodel_repl.F, dim=1)
-        Fr = torch.sum(Fr).item()
-        # if absolute difference of Fa and Fr is less than 1e-3, stop training
-        if(abs(Fa-Fr)<1e-3):
-            fd_model.stop_training = True
-            print("Early Stopping")
