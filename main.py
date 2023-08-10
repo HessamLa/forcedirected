@@ -187,6 +187,20 @@ if __name__ == '__main__':
     else:
         device = torch.device(args.device)
 
+    class EarlyStopping (Callback_Base):
+        def __init__(self, **kwargs) -> None:
+            super().__init__(**kwargs)
+
+        def on_epoch_end(self, fd_model, epoch, **kwargs):
+            Fa = torch.norm(fd_model.fmodel_attr.F, dim=1)
+            Fa = torch.sum(Fa).item()
+            Fr = torch.norm(fd_model.fmodel_repl.F, dim=1)
+            Fr = torch.sum(Fr).item()
+            # if absolute difference of Fa and Fr is less than 1e-3, stop training
+            if(abs(Fa-Fr)<1e-3):
+                fd_model.stop_training = True
+                print("Early Stopping")
+                
     ##### START EMBEDDING #####    
     model = args.FDModel(Gx, n_dims=args.ndim, alpha=args.alpha, callbacks=[StatsLog(args=args), EarlyStopping()])
     model.train(epochs=args.epochs, device=device)
