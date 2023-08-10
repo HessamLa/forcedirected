@@ -17,7 +17,7 @@ import networkx, networkit # this line is for typing hints used in this code
 import networkx as nx
 import networkit as nk
 
-from forcedirected.callbacks import StatsLog, EarlyStopping
+from forcedirected.callbacks import StatsLog
 import torch
 
 # %%
