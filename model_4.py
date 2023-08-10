@@ -80,6 +80,7 @@ class FDModel(Model_Base):
     
     def get_embeddings(self):   return self.Z.detach().cpu().numpy()
 
+    @torch.no_grad()
     def train(self, epochs=100, device='cpu', row_batch_size='auto', **kwargs):
         # train begin
         kwargs['epochs'] = epochs
@@ -88,7 +89,6 @@ class FDModel(Model_Base):
         self.hops = torch.tensor(self.hops).to(device)
         self.alpha_hops = torch.tensor(self.alpha_hops).to(device)
         self.degrees = torch.tensor(self.degrees).to(device) # mass of a node is equivalent to its degree
-
         self.Z = self.Z.to(device)
         
         def do_pairwise(Z_source, Z_landmark):
@@ -97,18 +97,33 @@ class FDModel(Model_Base):
             unitD = torch.where(N.unsqueeze(-1)!=0, D / N.unsqueeze(-1), torch.zeros_like(D))
             return D, N, unitD
 
-        Z = self.Z
         self.Fa = torch.zeros_like(self.Z).to(device)
         self.Fr = torch.zeros_like(self.Z).to(device)
-        F = torch.zeros_like(self.Z).to(device)
 
-        
-        max_batch_size = self.n_nodes
-        if(row_batch_size  == 'auto'): 
-            row_batch_size = max_batch_size
-        else: 
-            row_batch_size = min(row_batch_size, max_batch_size)
-        
+        from forcedirected.utilities import optimize_batch_count
+        @optimize_batch_count(max_batch_count=self.n_nodes)
+        def run_batches(batch_count=1, **kwargs):
+            kwargs['batch_count'] = batch_count
+            print(f"run_batches: batch count: {kwargs['batch_count']}")
+            batch_size=int(self.Z.shape[0]//batch_count +0.5)
+            for i, bmask in enumerate (batchify(list(range(self.Z.shape[0])), batch_size=batch_size)):
+                # batch begin
+                kwargs['batch'] = i+1
+                kwargs['batch_size'] = batch_size
+                self.notify_batch_begin_callbacks(**kwargs)
+                
+                ###################################
+                # this is the forward pass
+                D, N, unitD = do_pairwise(self.Z[bmask], self.Z)
+                self.Fa[bmask] = self.fmodel_attr(D, N, unitD, alpha_hops=self.alpha_hops[bmask,:]) # pass the current model (with its contained embeddings) to calculate the force
+                self.Fr[bmask] = self.fmodel_repl(D, N, unitD, hops=self.hops[bmask,:]) # pass the current model (with its contained embeddings) to calculate the force
+                del D, N, unitD
+
+                # batch ends
+                self.notify_batch_end_callbacks(**kwargs)
+            
+            return batch_count
+
         for epoch in range(epochs):
             if(self.stop_training): break
 
@@ -116,70 +131,11 @@ class FDModel(Model_Base):
             kwargs['epoch'] = epoch
             self.notify_epoch_begin_callbacks(**kwargs)
 
-            def optimize_batch_size(func):
-                @functools.wraps(func)
-                def wrapper(self, *args, **kwargs):
-                    
-                    row_batch_size = kwargs.get('row_batch_size')
-                    max_batch_size = kwargs.get('max_batch_size')
-                    if row_batch_size<max_batch_size: # row_batch_size was the last successful batch size
-                        min_batch_size = row_batch_size
-                    else:                        # either row_batch_size was the last unsuccessful batch size or it is to be determined
-                        min_batch_size = None
-                    
-                    # upgrade row_batch_size
-                    row_batch_size = (row_batch_size + max_batch_size + 1)//2
+            batch_count = run_batches(**kwargs)
 
-                    while True:
-                        try:
-                            kwargs['row_batch_size'] = row_batch_size
-                            kwargs['max_batch_size'] = max_batch_size
-                            return func(self, *args, **kwargs)
-                            
-                        except RuntimeError as e:
-                            if 'out of memory' in str(e).lower():
-                                if(row_batch_size == 1):
-                                    print("One row is too big for GPU memory. Please reduce the number of dimensions or the number of nodes.", file=sys.stderr)
-                                    raise e
-                                if(min_batch_size is None): # a successful batch size has not been found yet
-                                    max_batch_size = row_batch_size-1
-                                    row_batch_size = max_batch_size//2
-                                else:           # a successful batch size is in range [[min_batch_size, row_batch_size))
-                                    max_batch_size = row_batch_size-1
-                                    row_batch_size = (min_batch_size + max_batch_size)//2
-                                # print(f"REDUCE row_batch_size: {row_batch_size}, max_batch_size: {max_batch_size}")
-                            else:
-                                print(f"Exception: {e}")
-                                raise e
-                return wrapper
+            kwargs['batch_count'] = batch_count
+            kwargs['batch_size'] = int(self.Z.shape[0]//batch_count +0.5)
             
-            @optimize_batch_size
-            def run_batches(obj, row_batch_size=row_batch_size, max_batch_size=max_batch_size, **kwargs):
-                kwargs['batches'] = int(obj.Z.shape[0]//row_batch_size +0.5)
-                print(f" batch count: {kwargs['batches']}, min batch count: {int(obj.Z.shape[0]//max_batch_size+0.5)}")
-                for i, bmask in enumerate (batchify(list(range(obj.Z.shape[0])), batch_size=row_batch_size)):
-                    # batch begin
-                    kwargs['batch'] = i+1
-                    kwargs['row_batch_size'] = row_batch_size
-                    kwargs['max_batch_size'] = max_batch_size
-                    self.notify_batch_begin_callbacks(**kwargs)
-                    
-                    ###################################
-                    # this is the forward pass
-                    D, N, unitD = do_pairwise(obj.Z[bmask], obj.Z)
-                    # print(D.shape, N.shape, unitD.shape)
-                    obj.Fa[bmask] = obj.fmodel_attr(D, N, unitD, alpha_hops=obj.alpha_hops[bmask,:]) # pass the current model (with its contained embeddings) to calculate the force
-                    obj.Fr[bmask] = obj.fmodel_repl(D, N, unitD, hops=obj.hops[bmask,:]) # pass the current model (with its contained embeddings) to calculate the force
-                    del D, N, unitD
-
-                    # batch ends
-                    self.notify_batch_end_callbacks(**kwargs)
-                return row_batch_size, max_batch_size
-            
-            row_batch_size, max_batch_size = run_batches(self, row_batch_size=row_batch_size, max_batch_size=max_batch_size, **kwargs)
-            kwargs['batch_size'] = row_batch_size
-            kwargs['batches'] = int(self.Z.shape[0]//row_batch_size +0.5)
-
             ### JUST A HACK, We need this hack to avoid indexing problem with the statslog callback
             self.fmodel_attr.F = self.Fa
             self.fmodel_repl.F = self.Fr
@@ -191,14 +147,8 @@ class FDModel(Model_Base):
             self.dZ = torch.where(self.degrees[..., None] != 0, 
                                     F / self.degrees[..., None], 
                                     torch.zeros_like(F))
-            # relocs = torch.norm(self.dZ, dim=1)
-            # print(f'relocs: {relocs.sum():,.3f}({relocs.mean():.5f})')
-            # self.embeddings.update(self.dZ)
             self.Z += self.dZ
         
-            #### FIX ME. ForceClass should be able to work with batch methods
-            ###################################
-
             self.notify_epoch_end_callbacks(**kwargs)
         # epoch ends            
         
