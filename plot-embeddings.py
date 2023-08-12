@@ -2,48 +2,35 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib as mpl
+
 from sklearn.decomposition import PCA
 
 import networkx as nx
-# %%
-dataset = 'ego-facebook'
-dataset = 'cora'
-csvpath = f'./embeddings-drop-test/{dataset}--none/stats.csv'
-# csvpath = f'./embeddings/nodeforce/{dataset}/stats.csv'
-df = pd.read_csv(csvpath)
-print(df.head())
+from forcedirected.utilities.graphtools import process_graph_networkx
 
-meancols = [col for col in df.columns 
-            if col.endswith('mean') and 
-            col.startswith('hops') and
-            not col.startswith('hopsinf')]
-# print(meancols)
-stdcols = [col for col in df.columns 
-           if col.endswith('std') and 
-           col.startswith('hops') and
-           not col.startswith('hopsinf')]
-# print(meancols)
+from forcedirected.utilities import RecursiveNamespace as rn
 
-ax = df[meancols].iloc[-400:].plot(title=dataset)
+# load graph from files into a networkx object
+def load_graph(args: dict()):
+    ##### LOAD GRAPH #####
+    Gx = nx.Graph()
+    # load nodes first to keep the order of nodes as found in nodes or labels file
+    if('nodelist' in args and os.path.exists(args.nodelist)):
+        Gx.add_nodes_from(np.loadtxt(args.nodelist, dtype=str, usecols=0))
+        print('loaded nodes from nodes file')
+    elif('features' in args and  os.path.exists(args.features)):
+        Gx.add_nodes_from(np.loadtxt(args.features, dtype=str, usecols=0))
+        print('loaded nodes from features file')
+    elif('labels' in args and os.path.exists(args.labels)):
+        Gx.add_nodes_from(np.loadtxt(args.labels, dtype=str, usecols=0))   
+        print('loaded nodes from labels file')
+    else:
+        print('no nodes were loaded from files. nodes will be loaded from edgelist file.')
 
-# Retrieve the line colors used in the plot
-line_colors = [line.get_color() for line in ax.get_lines()]
-
-# Define the legend with colored circles matching the line colors
-legend_labels = df[meancols].columns
-legend_elements = [plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=color, markersize=8) 
-                   for color in line_colors]
-
-# Place the legend right to the figure, out of the axis
-ax.legend(reversed(legend_elements), reversed(legend_labels), loc='center left', bbox_to_anchor=(1, 0.5))
-# Enable gridlines on major ticks
-ax.grid(True)
-ax.set_ylim(bottom=0.0)
-# Adjust the layout to accommodate the legend
-# plt.subplots_adjust(right=0.75)
-
-# Show the plot
-plt.show()
+    # add edges from args.path_edgelist
+    Gx.add_edges_from(np.loadtxt(args.edgelist, dtype=str))
+    return Gx
 
 def reducedim (Z, target_dim, method='PCA', **kwargs):
     if(method.upper() == 'PCA'):
@@ -54,14 +41,22 @@ def reducedim (Z, target_dim, method='PCA', **kwargs):
         print(method, 'IS UNKNOWN')
         raise
 
+# %%
+
+dataset = 'ego-facebook'
+method='forcedirected_v0005_128d'
+method='ge-node2vec_128d'
+args = rn({'edgelist': f'./datasets/{dataset}/{dataset}_edgelist.txt',
+            'embedding':f'./embeddings/{method}/{dataset}/embed-df.pkl',
+            })
+
+Gx = load_graph(args)
       
 # %%
-from utilities import load_graph_networkx, process_graph_networkx
-# %%
-def drawgraph_2d(G, Z, nodes, degrees, figsize=(20,12), sizeratio=None, title=''):
+def drawgraph_2d(G, Z, nodes, degrees, figsize=(10,6), sizeratio=None, title=None, ax=None, add_colorbar=True):
     plt.close("all")
     if(sizeratio is None):
-        sizeratio = (figsize[0]//10)**2
+        sizeratio = figsize[0]**2/100
 
     X = reducedim(Z, 2)
 
@@ -71,38 +66,107 @@ def drawgraph_2d(G, Z, nodes, degrees, figsize=(20,12), sizeratio=None, title=''
     pos = {nodes[i]:[X[i, 0], X[i, 1]] for i in range(len(nodes))}
     
     # n_color = np.asarray([degrees[n] for n in nodes])
-    n_color = np.asarray(degrees)
-    n_size = np.power(n_color,0.8)*sizeratio
+    viridis = mpl.colormaps['viridis'].resampled(128)
     
-    fig = plt.figure(figsize=figsize)
+    n_color = np.asarray(degrees)
+    cmap = viridis(0.5+degrees/(max(degrees)*2))
+    n_size = np.power(n_color,0.7)*sizeratio
+
+    if(ax is None):
+        fig = plt.figure(figsize=figsize)
+        # Modify here
+        ax = plt.gca() 
+        ax.axis('off')
+    else:
+        plt.sca(ax)
+        fig = ax.figure
+
+    # remove grid from axis
+    ax.grid(False)    
+
+    viridis = mpl.colormaps['viridis'].resampled(128)
+    # Set vmin and vmax to use only upper half of colormap
+    vmin = .0
+    vmax = .5
+    degree_ranges=np.sqrt(np.asarray(degrees)/max(degrees))
+    # offset=1
+    # degree_ranges=(1-offset+degree_ranges*offset) # offset
     nx.draw_networkx(G, pos=pos, with_labels=False, 
-                    node_size=n_size, width=0.05*sizeratio)
+                    node_size=n_size, width=0.05*sizeratio,
+                    node_color=degree_ranges,
+                    cmap=viridis,
+                    vmin=vmin, vmax=vmax)
+    # make tight axis
+    ax.set_aspect('equal')
+    mpl.rcParams['lines.linewidth'] = 0.001*sizeratio
+
+    # add title to ax
+    if(title is not None):
+        ax.set_title(title)
+    
+    return ax.figure
 
 
-    sc = nx.draw_networkx_nodes(G, pos=pos, nodelist=nodes, node_color=n_color, cmap='viridis',
-                    # with_labels=False, 
-                    node_size=n_size)
-    # use a log-norm, do not see how to pass this through nx API
-    # just set it after-the-fact
-    import matplotlib.colors as mcolors
-    sc.set_norm(mcolors.LogNorm())
-    fig.colorbar(sc)
-    fig.suptitle(title, fontsize=12*sizeratio)
-    return fig
 
-from utilities import load_graph_networkx, process_graph_networkx
-
-Gx, data = load_graph_networkx(datasetname=dataset, rootpath='./datasets')
-print('loaded graph')
 G, A, degrees, hops = process_graph_networkx(Gx)
 print('processed graph')
+
+Z = pd.read_pickle(args.embedding)
+Z = Z.to_numpy()
+print(Z.shape)
+
+fig, axes = plt.subplots(1,1, figsize=(10,6))
+
+fig = drawgraph_2d(Gx, Z, list(Gx.nodes), degrees, title=f'{method} embedding {dataset}', ax=axes)
+plt.savefig(f'./plot-embeddings.pdf')
+
+fig.show()
+
+
+# %%
+dataset_args=rn()
+dataset = 'ego-facebook'
+method='forcedirected_v0005_128d'
+method='ge-node2vec_128d'
+method_name={'forcedirected_v0005_128d':'Force-Directed', 'ge-node2vec_128d':'Node2Vec', 'ge-deepwalk_128d':'DeepWalk'}
+for method in ['forcedirected_v0005_128d', 'ge-node2vec_128d', 'ge-deepwalk_128d']:
+    dataset_args[method] = rn({
+            'edgelist': f'./datasets/{dataset}/{dataset}_edgelist.txt',
+            'embedding':f'./embeddings/{method}/{dataset}/embed-df.pkl',
+            'methodname': method_name[method],
+            })
+print(dataset_args)
+
+fig, axes = plt.subplots(1,3, figsize=(21,6))
+for ax, args in zip(axes, dataset_args.values()):
+    print(ax)
+    print(args)
+    Gx = load_graph(args)
+    G, A, degrees, hops = process_graph_networkx(Gx)
+    print('processed graph')
+
+    Z = pd.read_pickle(args.embedding)
+    Z = Z.to_numpy()
+    print(Z.shape)
+
+    _ = drawgraph_2d(Gx, Z, list(Gx.nodes), degrees, title=f'{args.methodname} embedding {dataset}', ax=ax)
+plt.subplots_adjust(wspace=0, hspace=0)
+plt.subplots_adjust(top=0.85)
+plt.tight_layout()
+plt.savefig(f'./images/2d-multi.pdf')
+fig.show()
+
+
+
+# %%
 
 embedpath = f'./embeddings/{dataset}/embed.npy'
 noise,droprate = '','none'
 # noise = 'noise'
 droprate = 'steady-rate'
 embedpath = f'./embeddings-drop-test/{dataset}-{noise}-{droprate}/embed.npy'
-G, A, degrees, hops = process_graph_networkx(Gx)
+# G, A, degrees, hops = process_graph_networkx(Gx)
+
 Z = np.load(embedpath)
 print(Z.shape)
 drawgraph_2d(Gx, Z, list(Gx.nodes), degrees, title=f'NodeForce {dataset}-{noise}-{droprate}')
