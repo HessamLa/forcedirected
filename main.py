@@ -30,7 +30,7 @@ def process_arguments(
                 DEFAULT_DATASET='ego-facebook',
                 OUTPUTDIR_ROOT='./embeddings-tmp',
                 DATASET_CHOICES=['tinygraph', 'cora', 'citeseer', 'pubmed', 'ego-facebook', 'corafull', 'wiki', 'blogcatalog', 'flickr', 'youtube'],
-                MODEL_VERSION_CHOICES=['1','2','3','4','4nodrop', '5', '5z2'],
+                MODEL_VERSION_CHOICES=['1','2','3','4','4nodrop', '5', '5z2', '6', '7'],
                 NDIM=128, ALPHA=0.3,
                 ):
     
@@ -49,6 +49,8 @@ def process_arguments(
                         help='filename to store s sequence of results from each iteration (default: embed-hist.pkl). Use pickle loader to open.')
     parser.add_argument('--save-history-every', type=int, default=100, 
                         help='save history every n iteration.')
+    parser.add_argument('--save-stats-every', type=int, default=10, 
+                        help='save history every n iteration.')
     parser.add_argument('--statsfilename', type=str, default='stats.csv', 
                         help='filename to save the embedding stats history (default: stats.csv)')
     parser.add_argument('--logfilepath', type=str, default=None, 
@@ -59,8 +61,8 @@ def process_arguments(
     parser.add_argument('--alpha', type=float, default=ALPHA,
                         help='alpha parameter (default: 0.3)')
 
-    parser.add_argument('--epochs', type=int, default=4000, 
-                        help='number of iterations for embedding process (default: 4000)')
+    parser.add_argument('--epochs', type=int, default=5000, 
+                        help='number of iterations for embedding process (default: 5000)')
 
     parser.add_argument('--device', type=str, default='auto', choices=['auto', 'cpu', 'cuda'],
                         help='choose the device to run the process on (default: auto). auto will use cuda if available, otherwise cpu.')
@@ -106,6 +108,8 @@ def process_arguments(
     elif(args.fdversion=='4nodrop'):    from model_4nodrop import FDModel
     elif(args.fdversion=='5'):          from model_5 import FDModel
     elif(args.fdversion=='5z2'):          from model_5z2 import FDModel
+    elif(args.fdversion=='6'):          from model_6 import FDModel
+    elif(args.fdversion=='7'):          from model_7 import FDModel
     args.FDModel = FDModel
 
     if(args.outputdir is None):
@@ -187,6 +191,7 @@ if __name__ == '__main__':
     else:
         device = torch.device(args.device)
 
+    from forcedirected.utilityclasses import Callback_Base
     class EarlyStopping (Callback_Base):
         def __init__(self, **kwargs) -> None:
             super().__init__(**kwargs)
