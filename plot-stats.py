@@ -15,7 +15,8 @@ from forcedirected.utilities.RecursiveNamespace import RecursiveNamespace as rn
 
 
 
-def plot_stats(method, dataset, statspath, ax=None, epoch_range=None):
+def plot_stats(method, dataset, statspath, ax=None, epoch_range=None,
+                save_to=None, figtitle=None, from_time=None, to_time=None):
     df = load_stats(statspath)
     print(f'loaded dataframe from {statspath}')
     # TEMPORARY HACK
@@ -25,13 +26,20 @@ def plot_stats(method, dataset, statspath, ax=None, epoch_range=None):
                 c.startswith('hops') and not c.startswith('hopsinf')]
 
     plt.close("all")
+    if (from_time is not None):
+        df = df[df.epoch>=from_time]
+    if (to_time is not None):
+        df = df[df.epoch<=to_time]
     if (epoch_range is not None):
         df = df.iloc[epoch_range[0]:epoch_range[1]]
 
     # Create the figure and subplots
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(
         10, 5), gridspec_kw={'width_ratios': [1, 1]})
-    fig.suptitle(f'Pairwise distance (Dataset:{dataset}  Method:{method})')
+    if(figtitle is None):
+        fig.suptitle(f'Pairwise distance (Dataset:{dataset}  Method:{method})')
+    elif(figtitle != ''):
+        fig.suptitle(figtitle)
     ax1.set_xlabel('epoch')
     ax2.set_xlabel('epoch')
 
@@ -57,13 +65,16 @@ def plot_stats(method, dataset, statspath, ax=None, epoch_range=None):
     # Adjust the layout to accommodate the legend
     # plt.subplots_adjust(right=0.75)
     # SAVE PLOT
-    save_path = f'images/{dataset}-{method}-stats.png'
-    print(f'saving to {save_path}')
-    plt.savefig(save_path, bbox_inches='tight')
+    save_to = save_to or f'images/{dataset}-{method}-stats.png'
+    print(f'saving to {save_to}')
+    plt.savefig(save_to, bbox_inches='tight')
     # Show the plot
     plt.show()
 
-
+path='/N/u/hessamla/BigRed200/gnn/forcedirected/embeddings-gpu-bigred200/forcedirected_v0004_128d/corafull/stats.csv'
+path='/N/u/hessamla/BigRed200/gnn/forcedirected/embeddings-gpu-debug-bigred200/forcedirected_v0006_24d/ego-facebook/stats.csv'
+plot_stats('forcedirected_v0004_128d', 'citeseer', path, save_to='images/stats-pairdist_forcedirected_v0004_128d_corafull.pdf', from_time=1200)
+# %%
 # Directory where the embeddings and statistics are stored
 base_dir = 'embeddings-tmp'
 base_dir = 'embeddings-gpu-bigred200'
@@ -92,7 +103,8 @@ for p in paths:
         plot_stats(p.method, p.dataset, p.stats_path)
 
 # %%
-plot_stats('v4', 'cora test', '/N/u/hessamla/BigRed200/gnn/forcedirected/testdir/cora_128/stats.csv')
+# plot_stats('v4', 'cora test', '/N/u/hessamla/BigRed200/gnn/forcedirected/testdir/stats.csv')
+
 # %%
 import matplotlib.pyplot as plt
 import numpy as np

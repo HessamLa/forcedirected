@@ -44,10 +44,11 @@ def reducedim (Z, target_dim, method='PCA', **kwargs):
 # %%
 
 dataset = 'ego-facebook'
-method='forcedirected_v0005_128d'
 method='ge-node2vec_128d'
+method='forcedirected_v0005_128d'
+method='forcedirected_v0006_64d'
 args = rn({'edgelist': f'./datasets/{dataset}/{dataset}_edgelist.txt',
-            'embedding':f'./embeddings/{method}/{dataset}/embed-df.pkl',
+            'embedding':f'./embeddings-gpu-debug-bigred200/{method}/{dataset}/embed-df.pkl.tmp',
             })
 
 Gx = load_graph(args)
@@ -87,8 +88,13 @@ def drawgraph_2d(G, Z, nodes, degrees, figsize=(10,6), sizeratio=None, title=Non
     viridis = mpl.colormaps['viridis'].resampled(128)
     # Set vmin and vmax to use only upper half of colormap
     vmin = .0
-    vmax = .5
+    vmax = .999
     degree_ranges=np.sqrt(np.asarray(degrees)/max(degrees))
+    degree_ranges=0.05+degree_ranges*0.95
+    # vmin = 2
+    # vmax = max(degrees)/1.1
+    # vmax = 20
+    # degree_ranges=np.asarray(degrees)
     # offset=1
     # degree_ranges=(1-offset+degree_ranges*offset) # offset
     nx.draw_networkx(G, pos=pos, with_labels=False, 
