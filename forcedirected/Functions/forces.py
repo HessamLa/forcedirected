@@ -35,7 +35,6 @@ def repulsive_force_hops(D, N, unitD, hops, k1=1, k2=1, return_sum=True):
     unitD (n,n,d) is the unit direction, D/N
 
     hops (n,n) is the coefficient for each hop-distant neighbor
-        alpha_hops[i,j] = alpha^(h-1) where h is hops-distance between i,j
     k1 is amplitude factor, scalar: k1*f(x) 
     k2 is decaying factor factor, scalar: f(x/k2)
     """
@@ -45,6 +44,57 @@ def repulsive_force_hops(D, N, unitD, hops, k1=1, k2=1, return_sum=True):
     # calculate forces amplitude
     F = torch.where(N<k2,   k1/n * hops * (1-N/k2),
                             torch.zeros_like(N))
+
+    # apply negative direction
+    F = -unitD * F.unsqueeze(-1)
+    
+    if(return_sum):
+        F = F.sum(axis=1) # sum the i-th row to get all forces to i
+
+    return F
+
+def repulsive_force_exp_hops_x(D, N, unitD, hops, k1=1, k2=1, k3=1, return_sum=True):
+    """
+    f(x) = k1*exp((h-1)/k2)*exp(-x/k3) = k1*exp( (h-1)/k2 - x/k3 )
+    D (n,n,d) is the pairwaise difference (force). M[i,j]=P[j]-P[i], from i to j
+    N (n,n) is norm of each pairwise diff element, i.e x.
+    unitD (n,n,d) is the unit direction, D/N
+
+    hops (n,n) is the coefficient for each hop-distant neighbor
+    k1 is amplitude factor, scalar: k1*f(x) 
+    k2 and k3 are decaying factors, scalar: f(x/k2)
+    """
+    n = D.shape[0] # total number of nodes
+    
+    # force amplitudes is the main part the algorithm
+    # calculate forces amplitude
+    F = k1/n * torch.exp((hops-1)/k2-N/k3)
+
+    # apply negative direction
+    F = -unitD * F.unsqueeze(-1)
+    
+    if(return_sum):
+        F = F.sum(axis=1) # sum the i-th row to get all forces to i
+
+    return F
+
+def repulsive_force_exp_hops_x_2(D, N, unitD, hops, k1=1, k2=1, k3=1, return_sum=True):
+    """
+    f(x) = k1*(1-exp(-(h-1)/k2))*exp(-x/k3) = k1*exp( (h-1)/k2 - x/k3 )
+    D (n,n,d) is the pairwaise difference (force). M[i,j]=P[j]-P[i], from i to j
+    N (n,n) is norm of each pairwise diff element, i.e x.
+    unitD (n,n,d) is the unit direction, D/N
+    effectively 0 repulsion between neighbors
+
+    hops (n,n) is the coefficient for each hop-distant neighbor
+    k1 is amplitude factor, scalar: k1*f(x) 
+    k2 and k3 are decaying factors, scalar: f(x/k2)
+    """
+    n = D.shape[0] # total number of nodes
+    
+    # force amplitudes is the main part the algorithm
+    # calculate forces amplitude
+    F = k1/n * (1-torch.exp((1-hops)/k2))*torch.exp(-N/k3)
 
     # apply negative direction
     F = -unitD * F.unsqueeze(-1)
@@ -120,7 +170,7 @@ def repulsive_force_ahops_recip_x(D, N, unitD, alpha_hops, k1=1, k2=1, return_su
     alpha, scalar is the coefficient for each hop-distant neighbor
 
     alpha_hops (n,n) is the coefficient for each hop-distant neighbor
-        alpha_hops[i,j] = alpha^(h-1) where h is hops-distance between i,j
+        alpha_hops[i,j] = alpha^(h-1)/n where h is hops-distance between i,j
     k1 is amplitude factor, scalar.
     k2 is power factor, scalar.
     """
@@ -129,7 +179,7 @@ def repulsive_force_ahops_recip_x(D, N, unitD, alpha_hops, k1=1, k2=1, return_su
     # force amplitudes is the main part the algorithm
     # calculate forces amplitude
     x_to_k2 = torch.pow(N, k2) # raise x to power of k2. x is distance between two points
-    F = k1/n * alpha_hops * torch.where(x_to_k2!= 0, k1 / x_to_k2, torch.zeros_like(x_to_k2))
+    F = k1 * alpha_hops * torch.where(x_to_k2!= 0, k1 / x_to_k2, torch.zeros_like(x_to_k2))
     
     # apply negative direction
     F = -unitD * F.unsqueeze(-1)
