@@ -53,3 +53,7 @@ class Model_Base:
         for callback in self.callbacks:
             callback.on_train_end(self, epochs, **kwargs)
         pass
+
+class ForceDirected(Model_Base):
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
