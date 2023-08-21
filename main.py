@@ -55,26 +55,20 @@ def process_arguments(
                         help='filename to save the embedding stats history (default: stats.csv)')
     parser.add_argument('--logfilepath', type=str, default=None, 
                         help='path to the log file (default: {EMBEDDING_METHOD}-{dataset}.log)')
-
     parser.add_argument('--ndim', type=int, default=NDIM, 
                         help=f'number of embedding dimensions (default: {NDIM})')
     parser.add_argument('--alpha', type=float, default=ALPHA,
                         help='alpha parameter (default: 0.3)')
-
     parser.add_argument('--epochs', type=int, default=5000, 
                         help='number of iterations for embedding process (default: 5000)')
-
     parser.add_argument('--device', type=str, default='auto', choices=['auto', 'cpu', 'cuda'],
                         help='choose the device to run the process on (default: auto). auto will use cuda if available, otherwise cpu.')
-
     parser.add_argument('--std0', type=float, default=1.0, 
                         help='initialization standard deviation (default: 1.0).')
-
     parser.add_argument('--base_std0', type=float, default=0.005, 
                         help='base standard deviation of noise (default: 0.005), noise_std = f(t)*std0 + base_std0. f(t) converges to 0.')
     parser.add_argument('--add-noise', action='store_true', 
                         help='enable noise')
-
     parser.add_argument('--random-drop', default='steady-rate', type=str,
                         choices=['steady-rate', 'exponential-diminish', 'linear-decrease', 'linear-increase', 'none', ''], 
                         help='Random drop mode')

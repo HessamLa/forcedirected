@@ -8,7 +8,7 @@ import functools
 import math
 import sys
 
-from forcedirected.utilities.graphtools import load_graph_networkx, process_graph_networkx
+from forcedirected.utilities.graphtools import process_graph_networkx
 from forcedirected.utilities.reportlog import ReportLog
 from forcedirected.utilities import batchify
 
@@ -78,7 +78,8 @@ class FDModel(Model_Base):
         FDModel.DESCRIPTION = FDModel.DESCRIPTION.format(alpha=self.alpha)
         pass
     
-    def get_embeddings(self):   return self.Z.detach().cpu().numpy()
+    def get_embeddings(self):   
+        return self.Z.detach().cpu().numpy()
 
     @torch.no_grad()
     def train(self, epochs=100, device='cpu', row_batch_size='auto', **kwargs):
