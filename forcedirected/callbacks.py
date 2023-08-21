@@ -207,7 +207,7 @@ class StatsLog (Callback_Base):
         self.hist_filepath = f"{self.args.outputdir}/{self.args.historyfilename}" # the path to APPEND the latest embedding
         self.stats_filepath = f"{self.args.outputdir}/{self.args.statsfilename}" # the path to save the latest stats
         self.save_history_every = self.args.save_history_every
-        self.save_stats_every = 1
+        self.save_stats_every = self.args.save_stats_every
         self.statsdf = pd.DataFrame()
         # self.logger = ReportLog(self.args.logfilepath)
         
@@ -223,7 +223,7 @@ class StatsLog (Callback_Base):
 
         # Add a console handler to print logs to the console
         console_handler = logging.StreamHandler(sys.stdout)
-        console_handler.setLevel(logging.INFO)
+        console_handler.setLevel(logging.DEBUG)
         # console_handler.setFormatter(logging.Formatter('> %(message)s'))
         self.statlog.addHandler(console_handler)
         ############################################
@@ -278,8 +278,11 @@ class StatsLog (Callback_Base):
         # return super().on_batch_begin(fd_model, batch, **kwargs)
 
     def on_train_end(self, fd_model, epochs, **kwargs):
+        print("on_train_end() ---+-----+--- train ended here")
+        kwargs['epochs']=epochs
         self.statlog.debug("Final save")
         self.save_embeddings(fd_model, **kwargs)
+        self.update_stats(fd_model, **kwargs)
         self.save_history(fd_model, **kwargs)
 
         # rename the temporary embedding file
