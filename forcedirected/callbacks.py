@@ -133,10 +133,11 @@ def make_force_stats(model):
     summary_stats = lambda x: (torch.sum(x).item(), torch.mean(x).item(), torch.std(x).item())
     s={}
     fsum=torch.zeros_like(model.forces[0])
-    for f in model.forces:
-        s[f'{f.name}-sum'], s[f'{f.name}-mean'], s[f'{f.name}-std'] = summary_stats( torch.norm(forces[f], dim=1) )
-        s[f'{f.name}-sum-w'], s[f'{f.name}-mean-w'], s[f'{f.name}-std-w'] = summary_stats( torch.norm(forces[f], dim=1) )*model.degrees
-        fall += f
+    for F in model.forces:
+        print(F.tag)
+        # s[f'{f.name}-sum'], s[f'{f.name}-mean'], s[f'{f.name}-std'] = summary_stats( torch.norm(forces[f], dim=1) )
+        # s[f'{f.name}-sum-w'], s[f'{f.name}-mean-w'], s[f'{f.name}-std-w'] = summary_stats( torch.norm(forces[f], dim=1) )*model.degrees
+        # fall += f
 
     # s['f-sum'] = torch.norm(fsum, dim=-1).sum().item()
     # s['f-sum-w'] = torch.norm(fsum*model.degrees[:, None], dim=-1).sum().item()
@@ -148,6 +149,7 @@ def make_stats_log(model, epoch):
     s = {'epoch': epoch}
     s.update(make_hops_stats(model.Z, model.hops, model.maxhops))
 
+    make_force_stats(model)
     summary_stats = lambda x: (torch.sum(x).item(), torch.mean(x).item(), torch.std(x).item())
 
     # attractive forces

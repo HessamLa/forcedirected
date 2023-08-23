@@ -3,112 +3,25 @@
 # reload modules
 # %load_ext autoreload
 # %autoreload 2
-
 # get arguments
 import os, sys
 import argparse
-import pickle
 from typing import Any
-
-import logging
-# from types import *
 
 from pprint import pprint
 
 import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
 
 import networkx, networkit # this line is for typing hints used in this code
 import networkx as nx
 import networkit as nk
 
-
-from forcedirected.utilities.graphtools import load_graph_networkx, process_graph_networkx
-from forcedirected.utilities.reportlog import ReportLog
-
-from forcedirected.algorithms import get_alpha_hops, pairwise_difference
-from forcedirected.Functions import attractive_force_ahops, repulsive_force_hops_exp
-
-from forcedirected.Functions import DropSteadyRate, DropLinearChange, DropExponentialDimish
-from forcedirected.Functions import generate_random_points
-from forcedirected.utilityclasses import ForceClass, NodeEmbeddingClass
-from forcedirected.utilityclasses import Model_Base, Callback_Base
+from .callbacks import StatsLog
 import torch
 
 # %%
-log = logging.getLogger(__name__)
-log.setLevel(logging.INFO)
-# create console handler with a higher log level
-ch = logging.StreamHandler(sys.stdout)
-ch.setLevel(logging.DEBUG)
-# create formatter and add it to the handlers
-ch.setFormatter(logging.Formatter('%(message)s'))
-log.addHandler(ch)
-
-# %%
-def zblock_distances(hops_block, Z, maxhop, Z_col=None):
-    n = Z.size(0)
-    if(Z_col is None):
-        i, j = torch.triu_indices(n, n)
-        D = Z[i] - Z[j]
-    else:
-        D = Z_col.unsqueeze(0) - Z.unsqueeze(1)
-    N=torch.norm(D, dim=-1)
-    distances={h:[] for h in range(1, maxhop+1)}
-    for h in distances.keys():
-        hmask = hops_block==h
-        distances[h] = list(N[hmask])
-    return distances
 # %%
 
-from model_1 import FDModel as FDModel_1
-from model_2 import FDModel as FDModel_2
-from model_3 import FDModel as FDModel_3
-from model_4 import FDModel as FDModel_4
-
-def zblock_hops_count(Z_block1, Z_block2, hops_block, maxhop):
-    D_block = pairwise_difference(Z_block1, Z_block2)
-    N_block = torch.norm(D_block, dim=-1)
-    count={}
-    for h in range(1, maxhop+1):
-        count[h] = (hops_block == h).sum().item()
-            
-
-
-
-def openfile(path, mode):
-    try:
-        return open(path, mode)
-    except Exception as e:
-        print(f"Failed to open the file at {path}")
-        print(e)
-        return None
-
-def remove_comment(line, cmt='#'):
-    idx = line.find(cmt)
-    if(idx == -1):      return line
-    elif(idx == 0):     return ''
-    else:               return line[:idx]
-
-def read_labels(filepath, skip_head=False, multi_label=False):
-    Y = dict()
-    fin = openfile(filepath, 'r')
-    if skip_head:
-        fin.readline()
-    for i, line in enumerate(fin.readlines(), start=1+int(skip_head)):
-        line = remove_comment(line)
-        if len(line) == 0:
-            continue
-        vec = line.strip().split(' ')
-        if (len(vec) == 1 ):
-            raise ValueError(f"Label file {filepath} has invalid format at line {i+1}")
-        if(multi_label is False):
-            Y[vec[0]] = vec[1]
-        else:
-            Y[vec[0]] = [vec[i] for i in range(1, len(vec))]
-    fin.close()
-    return Y
 
 def process_arguments(
                 # You can override the following default parameters by argument passing
@@ -116,46 +29,46 @@ def process_arguments(
                 DEFAULT_DATASET='ego-facebook',
                 OUTPUTDIR_ROOT='./embeddings-tmp',
                 DATASET_CHOICES=['tinygraph', 'cora', 'citeseer', 'pubmed', 'ego-facebook', 'corafull', 'wiki', 'blogcatalog', 'flickr', 'youtube'],
+                # MODEL_VERSION_CHOICES=['1','2','3','104','4nodrop', '5', '5z2', '6', '7'],
+                MODEL_VERSION_CHOICES=['104'],
                 NDIM=128, ALPHA=0.3,
                 ):
     
     parser = argparse.ArgumentParser(description='Process command line arguments.')
     parser.add_argument('-d', '--dataset', type=str, default=DEFAULT_DATASET, choices=DATASET_CHOICES, 
                         help='name of the dataset (default: cora)')
-    parser.add_argument('-v', '--fdversion', type=int, default=4, choices=[1,2,3,4,5],
-                        help='version of the force-directed model (default: 4)')
+    parser.add_argument('-v', '--fdversion', type=str, default='104', choices=MODEL_VERSION_CHOICES,
+                        help='version of the force-directed model (default: 104)')
+    parser.add_argument('--outputdir_root', type=str, default=OUTPUTDIR_ROOT, 
+                        help=f"Root output directory (default: {OUTPUTDIR_ROOT}")
     parser.add_argument('--outputdir', type=str, default=None, 
-                        help=f"output directory (default: {OUTPUTDIR_ROOT}/{EMBEDDING_METHOD}_v{{version}}_{{ndim}}d/{DEFAULT_DATASET})")
+                        help=f"output directory (default: {{outputdir_root}}/{EMBEDDING_METHOD}_v{{version}}_{{ndim}}d/{DEFAULT_DATASET})")
     parser.add_argument('--outputfilename', type=str, default='embed-df.pkl', 
                         help='filename to save the final result (default: embed-df.pkl). Use pandas to open.')
     parser.add_argument('--historyfilename', type=str, default='embed-hist.pkl', 
                         help='filename to store s sequence of results from each iteration (default: embed-hist.pkl). Use pickle loader to open.')
     parser.add_argument('--save-history-every', type=int, default=100, 
                         help='save history every n iteration.')
+    parser.add_argument('--save-stats-every', type=int, default=10, 
+                        help='save history every n iteration.')
     parser.add_argument('--statsfilename', type=str, default='stats.csv', 
                         help='filename to save the embedding stats history (default: stats.csv)')
     parser.add_argument('--logfilepath', type=str, default=None, 
                         help='path to the log file (default: {EMBEDDING_METHOD}-{dataset}.log)')
-
     parser.add_argument('--ndim', type=int, default=NDIM, 
                         help=f'number of embedding dimensions (default: {NDIM})')
     parser.add_argument('--alpha', type=float, default=ALPHA,
                         help='alpha parameter (default: 0.3)')
-
-    parser.add_argument('--epochs', type=int, default=4000, 
-                        help='number of iterations for embedding process (default: 4000)')
-
+    parser.add_argument('--epochs', type=int, default=5000, 
+                        help='number of iterations for embedding process (default: 5000)')
     parser.add_argument('--device', type=str, default='auto', choices=['auto', 'cpu', 'cuda'],
                         help='choose the device to run the process on (default: auto). auto will use cuda if available, otherwise cpu.')
-
     parser.add_argument('--std0', type=float, default=1.0, 
                         help='initialization standard deviation (default: 1.0).')
-
     parser.add_argument('--base_std0', type=float, default=0.005, 
                         help='base standard deviation of noise (default: 0.005), noise_std = f(t)*std0 + base_std0. f(t) converges to 0.')
     parser.add_argument('--add-noise', action='store_true', 
                         help='enable noise')
-
     parser.add_argument('--random-drop', default='steady-rate', type=str,
                         choices=['steady-rate', 'exponential-diminish', 'linear-decrease', 'linear-increase', 'none', ''], 
                         help='Random drop mode')
@@ -171,15 +84,27 @@ def process_arguments(
         print("THERE ARE UNKNOWN ARGUMENTS PASSED:")
         pprint(unknown)
         print("====================================")
+        input("Enter a key to continue...")
         
-    # use default parameter values if required
-    if  (args.fdversion==1): args.FDModel = FDModel_1
-    elif(args.fdversion==2): args.FDModel = FDModel_2
-    elif(args.fdversion==3): args.FDModel = FDModel_3
-    elif(args.fdversion==4): args.FDModel = FDModel_4
-    
+    # # use default parameter values if required
+    # if  (args.fdversion=='1'): args.FDModel = FDModel_1
+    # elif(args.fdversion=='2'): args.FDModel = FDModel_2
+    # elif(args.fdversion=='3'): args.FDModel = FDModel_3
+    # elif(args.fdversion=='4'): args.FDModel = FDModel_4
+    # elif(args.fdversion=='4nodrop'): args.FDModel = FDModel_4nodrop
+    # elif(args.fdversion=='5'): args.FDModel = FDModel_5
+
+        # use default parameter values if required
+    if(args.fdversion=='104'):          from .models.model_104 import FDModel
+    elif(args.fdversion=='4nodrop'):    from .models.model_4nodrop import FDModel
+    elif(args.fdversion=='5'):          from .models.model_5 import FDModel
+    elif(args.fdversion=='5z2'):          from .models.model_5z2 import FDModel
+    elif(args.fdversion=='6'):          from .models.model_6 import FDModel
+    elif(args.fdversion=='7'):          from .models.model_7 import FDModel
+    args.FDModel = FDModel
+
     if(args.outputdir is None):
-        args.outputdir = f"{OUTPUTDIR_ROOT}/{EMBEDDING_METHOD}_v{args.FDModel.VERSION}_{args.ndim}d/{args.dataset}"
+        args.outputdir = f"{args.outputdir_root}/{EMBEDDING_METHOD}_v{args.FDModel.VERSION}_{args.ndim}d/{args.dataset}"
     if(args.logfilepath is None):
         args.logfilepath = f"{args.outputdir}/{EMBEDDING_METHOD}-{args.dataset}.log"
 
@@ -257,15 +182,34 @@ if __name__ == '__main__':
     else:
         device = torch.device(args.device)
 
+    from forcedirected.utilityclasses import Callback_Base
+    class EarlyStopping (Callback_Base):
+        def __init__(self, **kwargs) -> None:
+            super().__init__(**kwargs)
+
+        def on_epoch_end(self, fd_model, epoch, **kwargs):
+            Fa = torch.norm(fd_model.fmodel_attr.F, dim=1)
+            Fa = torch.sum(Fa).item()
+            Fr = torch.norm(fd_model.fmodel_repl.F, dim=1)
+            Fr = torch.sum(Fr).item()
+            # if absolute difference of Fa and Fr is less than 1e-3, stop training
+            if(abs(Fa-Fr)<1e-3):
+                fd_model.stop_training = True
+                print("Early Stopping")
+                
     ##### START EMBEDDING #####    
-    model = args.FDModel(Gx, n_dims=args.ndim, alpha=args.alpha, callbacks=[StatsLog(), EarlyStopping()])
+    model = args.FDModel(Gx, n_dims=args.ndim, alpha=args.alpha, callbacks=[StatsLog(args=args), EarlyStopping()])
     model.train(epochs=args.epochs, device=device)
-    
+    with open(args.outputdir+'/done.txt', 'w') as f:
+        f.write('done')
+    print(f'Embedding completed, dataset={args.dataset}, version={args.fdversion}, ndim={args.ndim}')
+    print(f'Embedding completed, dataset={args.dataset}, version={args.fdversion}, ndim={args.ndim}', file=sys.stderr)
     ##### SAVE EMBEDDINGS #####
     embeddings = model.get_embeddings()
     
 
-    pos_dict = dict(zip(Gx.nodes(), model.Z[:,:2].cpu().numpy()))
-    nx.draw(Gx, pos=pos_dict, node_size=10, width=0.1, node_color='black', edge_color='gray')
+    # pos_dict = dict(zip(Gx.nodes(), model.Z[:,:2].cpu().numpy()))
+    # nx.draw(Gx, pos=pos_dict, node_size=10, width=0.1, node_color='black', edge_color='gray')
+
 
 # %%
