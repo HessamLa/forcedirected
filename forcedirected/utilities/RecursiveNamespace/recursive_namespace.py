@@ -3,7 +3,20 @@ import types
 import sys
 from typing import Any
 
+import collections
+def flatten_dict(d, sep='_'):
+    newd = {}
+    for k,v in d.items():
+        if(isinstance(v, dict)):
+            flatd = flatten_dict(v, sep=sep)
+            for k2,v2 in flatd.items():
+                newd[f"{k}{sep}{k2}"] = v2
+        else:
+            newd[k] = v
+    return newd
+
 class RecursiveNamespace(types.SimpleNamespace):
+    __VERSION__="0001"
     def __init__(self,data={}, accepted_iter_types=[], **kwargs):
         self.__key_ = ''
         self.__supported_types_ = [list, tuple, set] + accepted_iter_types
@@ -45,6 +58,15 @@ class RecursiveNamespace(types.SimpleNamespace):
         
     def get_key(self):
         return self.__key_ 
+
+    def update(self, data):
+        try:
+            if(not isinstance(data, RecursiveNamespace)):
+                data = RecursiveNamespace(data)
+        except Exception as e:
+            raise Exception(f"Failed to update with data of type {type(data)}")
+        for key, val in data.items():
+            self[key] = val
 
     def __remove_protected_key(self, key):
         self.__protected_keys_.remove(key) 
@@ -90,8 +112,6 @@ class RecursiveNamespace(types.SimpleNamespace):
         key = self.__re(key)
         del self[key]
     
-        
-
     def items(self):
         return [(k,v) for k,v in self.__dict__.items() if k not in self.__protected_keys_]
     def keys(self):
@@ -103,7 +123,10 @@ class RecursiveNamespace(types.SimpleNamespace):
             return self.to_dict()
         return iter(self.keys())
 
-    def to_dict(self):
+    def to_dict(self, flatten_sep:str=False):
+        """Convert the RecursiveNamespace object to a dictionary.
+        If flatten_sep is not False, then the keys are flattened using the separator.
+        """
         pairs = []
         for k,v in self.items():
             if isinstance(v, RecursiveNamespace):
@@ -114,15 +137,18 @@ class RecursiveNamespace(types.SimpleNamespace):
                 pairs.append((k, self.__iter_to_dict(v)))
             else:
                 pairs.append((k, v))
-        return dict(pairs)
+        d = dict(pairs)
+        if(flatten_sep):
+            d = flatten_dict(d, sep=flatten_sep)
+        return d
     
     def __iter_to_dict(self, iterable=None):
         elements = []
         for val in iterable:
             if isinstance(val, RecursiveNamespace):
                 elements.append(val.to_dict())
-            elif isinstance(v, dict):
-                elements.append(v)
+            elif isinstance(val, dict):
+                elements.append(val)
             elif hasattr(val, '__iter__') and type(val) in self.__supported_types_:
                 elements.append(self.__iter_to_dict(val))
             else:
@@ -159,6 +185,11 @@ if __name__ == '__main__':
     data2 = rname.to_dict()
     print(data)
     print(data2)
+
+    print("Flatten")
+    print(rname)
+    from pprint import pprint
+    pprint(rname.to_dict(flatten_sep='__'))
 # %%
     print(rname)
     print('%20s :'%(type(rname.a_)), rname.a_)
