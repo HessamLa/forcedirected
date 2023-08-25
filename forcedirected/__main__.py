@@ -85,16 +85,7 @@ def process_arguments(
         pprint(unknown)
         print("====================================")
         input("Enter a key to continue...")
-        
-    # # use default parameter values if required
-    # if  (args.fdversion=='1'): args.FDModel = FDModel_1
-    # elif(args.fdversion=='2'): args.FDModel = FDModel_2
-    # elif(args.fdversion=='3'): args.FDModel = FDModel_3
-    # elif(args.fdversion=='4'): args.FDModel = FDModel_4
-    # elif(args.fdversion=='4nodrop'): args.FDModel = FDModel_4nodrop
-    # elif(args.fdversion=='5'): args.FDModel = FDModel_5
 
-        # use default parameter values if required
     if(args.fdversion=='104'):          from .models.model_104 import FDModel
     elif(args.fdversion=='4nodrop'):    from .models.model_4nodrop import FDModel
     elif(args.fdversion=='5'):          from .models.model_5 import FDModel
