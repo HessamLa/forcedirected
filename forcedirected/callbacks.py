@@ -9,6 +9,8 @@ from .utilityclasses import Callback_Base
 from .utilities import ReportLog
 from .utilities import optimize_batch_count
 
+import .utilities.RecursiveNamespace as rn
+
 @torch.no_grad()
 def make_hops_stats_old(Z, hops, maxhops):
     print("make_hops_stats")
@@ -129,65 +131,98 @@ def make_hops_stats(Z, hops, maxhops, batch_count=1, *args, **kwargs):
 
     return s
     
+summary_stats = lambda x: (torch.sum(x).item(), torch.mean(x).item(), torch.std(x).item())
+
 def make_force_stats(model):
-    summary_stats = lambda x: (torch.sum(x).item(), torch.mean(x).item(), torch.std(x).item())
-    s={}
-    fsum=torch.zeros_like(model.forces[0])
-    for F in model.forces:
+    s=rn(f_mag_sum=0, f_mag_wsum=0)
+    f_all=torch.zeros_like(model.Z)
+    for F in model.forcev.values():
         print(F.tag)
-        # s[f'{f.name}-sum'], s[f'{f.name}-mean'], s[f'{f.name}-std'] = summary_stats( torch.norm(forces[f], dim=1) )
-        # s[f'{f.name}-sum-w'], s[f'{f.name}-mean-w'], s[f'{f.name}-std-w'] = summary_stats( torch.norm(forces[f], dim=1) )*model.degrees
-        # fall += f
+        _sum, _mean, _std = summary_stats( torch.norm(F.V, dim=1) )
+        _wsum, _wmean, _wstd = summary_stats( torch.norm(F.v, dim=1) )*model.degrees
+
+        s[F.tag]=rn(sum=_sum, mean=_mean, std=_std, wsum=_wsum, wmean=_wmean, wstd=_wstd)
+        s.f_mag_sum += _sum
+        s.f_mag_wsum += _wsum
+
+        # s[f'{F.tag}-sum'], s[f'{F.tag}-mean'], s[f'{F.tag}-std'] = summary_stats( torch.norm(F.V, dim=1) )
+        # s[f'{F.tag}-w-sum'], s[f'{F.tag}-w-mean'], s[f'{F.tag}-w-std'] = summary_stats( torch.norm(F.v, dim=1) )*model.degrees
+        
+        # s['f-mag-sum'] += s[f'{F.tag}-sum'] # magnitudes sum
+        # s['f-mag-w-sum'] += s[f'{F.tag}-w-sum'] # magnitudes weighted sum
+        
+        # logstr+= f"{F.tag}:{s[f'{F.tag}-sum']:<9.3f}({s[f'{F.tag}-mean']:.3f})  "
+        # logstr+= f"w{F.tag}:{s[f'{F.tag}-w-sum']:<9.3f}({s[f'{F.tag}-w-mean']:.3f})  "
+        
+        f_all += F.v
+
+    s['f-all'] = torch.norm( torch.sum(f_all, dim=0) ).item()
+    s['f-all-w'] = torch.norm( torch.sum(f_all*model.degrees[:, None], dim=0) ).item()
 
     # s['f-sum'] = torch.norm(fsum, dim=-1).sum().item()
     # s['f-sum-w'] = torch.norm(fsum*model.degrees[:, None], dim=-1).sum().item()
     # s['f-sum-mag'] = torch.norm(fsum, dim=1).sum().item()
     return s
 
+def make_relocation_stats(model):
+    # relocations
+    _sum, _mean, _std = summary_stats( torch.norm(model.dZ, dim=1) )
+    _wsum, _wmean, _wstd = summary_stats( torch.norm(model.dZ, dim=1)*model.degrees )
+    
+    s = rn(sum=_sum, mean=_mean, std=_std, wsum=_wsum, wmean=_wmean, wstd=_wstd)
+    return s
+
 def make_stats_log(model, epoch):
     logstr = ''
-    s = {'epoch': epoch}
+    s = rn({'epoch': epoch})
     s.update(make_hops_stats(model.Z, model.hops, model.maxhops))
+    s.force_stats=make_force_stats(model)
+    s.reloc_stats=make_relocation_stats(model)
+    
+    # summary_stats = lambda x: (torch.sum(x).item(), torch.mean(x).item(), torch.std(x).item())
 
-    make_force_stats(model)
-    summary_stats = lambda x: (torch.sum(x).item(), torch.mean(x).item(), torch.std(x).item())
+    # # attractive forces
+    # Fa = model.fmodel_attr.F
+    # s['fa-sum'],  s['fa-mean'],  s['fa-std']  = summary_stats( torch.norm(Fa, dim=1) )
+    # # weighted attractive forces
+    # s['wfa-sum'], s['wfa-mean'], s['wfa-std'] = summary_stats( torch.norm(Fa, dim=1)*model.degrees )
 
-    # attractive forces
-    Fa = model.fmodel_attr.F
-    s['fa-sum'],  s['fa-mean'],  s['fa-std']  = summary_stats( torch.norm(Fa, dim=1) )
-    # weighted attractive forces
-    s['wfa-sum'], s['wfa-mean'], s['wfa-std'] = summary_stats( torch.norm(Fa, dim=1)*model.degrees )
-
-    # repulsive forces
-    Fr = model.fmodel_repl.F
-    s['fr-sum'],  s['fr-mean'],  s['fr-std']  = summary_stats( torch.norm(Fr, dim=1) )
-    # weighted repulsive forces
-    s['wfr-sum'], s['wfr-mean'], s['wfr-std'] = summary_stats( torch.norm(Fr, dim=1)*model.degrees )
+    # # repulsive forces
+    # Fr = model.fmodel_repl.F
+    # s['fr-sum'],  s['fr-mean'],  s['fr-std']  = summary_stats( torch.norm(Fr, dim=1) )
+    # # weighted repulsive forces
+    # s['wfr-sum'], s['wfr-mean'], s['wfr-std'] = summary_stats( torch.norm(Fr, dim=1)*model.degrees )
     
     
-    # sum of all forces, expected to converge to 0
-    s['f-all'] = torch.norm( torch.sum(Fa+Fr, dim=0) ) 
+    # # sum of all forces, expected to converge to 0
+    # s['f-all'] = torch.norm( torch.sum(Fa+Fr, dim=0) ) 
     
-    # sum of norm/magnitude of all forces, expected to converge
-    s['f-all-sum'] = s['fa-sum'] + s['fr-sum']
+    # # sum of norm/magnitude of all forces, expected to converge
+    # s['f-all-sum'] = s['fa-sum'] + s['fr-sum']
 
-    # sum of all weighted forces, expected to converge to 0
-    s['wf-all'] = torch.norm( torch.sum( (Fa+Fr)*model.degrees[:, None], dim=0 ) )    
+    # # sum of all weighted forces, expected to converge to 0
+    # s['wf-all'] = torch.norm( torch.sum( (Fa+Fr)*model.degrees[:, None], dim=0 ) )    
 
-    # sum of norm/magnitude of all weighted forces, expected to converge
-    s['wf-all-sum'] = s['wfa-sum'] + s['wfr-sum']
+    # # sum of norm/magnitude of all weighted forces, expected to converge
+    # s['wf-all-sum'] = s['wfa-sum'] + s['wfr-sum']
 
-    # relocations
-    s['relocs-sum'], s['relocs-mean'], s['relocs-std'] = summary_stats( torch.norm(model.dZ, dim=1) )
+    # # relocations
+    # s['relocs-sum'], s['relocs-mean'], s['relocs-std'] = summary_stats( torch.norm(model.dZ, dim=1) )
     
-    # weighted relocations
-    s['wrelocs-sum'], s['wrelocs-mean'], s['wrelocs-std'] = summary_stats( torch.norm(model.dZ, dim=1)*model.degrees )
+    # # weighted relocations
+    # s['wrelocs-sum'], s['wrelocs-mean'], s['wrelocs-std'] = summary_stats( torch.norm(model.dZ, dim=1)*model.degrees )
     
     # convert all torch.Tensor elements to regular python numbers
     for k,v in s.items():
         if(type(v) is torch.Tensor):
             s[k] = v.item()
 
+    # make the log string
+    logstr = ''
+    for k,v in s..items():
+    for k,v in s.items():
+        logstr += f"{k}:{v:<9.3f}  "
+    
     logstr = f"attr:{s['fa-sum']:<9.3f}({s['fa-mean']:.3f})  "
     logstr+= f"repl:{s['fr-sum']:<9.3f}({s['fr-mean']:.3f})  "
     logstr+= f"wattr:{s['wfa-sum']:<9.3f}({s['wfa-mean']:.3f})  "
