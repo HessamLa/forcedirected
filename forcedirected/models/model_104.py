@@ -19,6 +19,7 @@ from forcedirected.Functions import DropSteadyRate, DropLinearChange, DropExpone
 from forcedirected.Functions import generate_random_points
 from forcedirected.utilityclasses import ForceClass, NodeEmbeddingClass
 from forcedirected.utilityclasses import Model_Base, Callback_Base
+import forcedirected.utilities.RecursiveNamespace as rn
 import torch
 
 # Function to check available GPU memory
@@ -30,7 +31,7 @@ def check_gpu_memory():
 
 class FDModel(Model_Base):
     """Force Directed Model"""
-    VERSION="0004"
+    VERSION="0104"
     DESCRIPTION="Exponential Decay repulsive(k1=10, k2=0.9), alpha={alpha}"
     def __str__(self):
         return f"FDModel v{FDModel.VERSION},{FDModel.DESCRIPTION}"
@@ -66,6 +67,18 @@ class FDModel(Model_Base):
                             #  func=lambda fd_model: repulsive_force_hops_exp(fd_model.D, fd_model.N, fd_model.unitD, torch.tensor(fd_model.hops).to(fd_model.device), k1=10, k2=0.9)
                             func=lambda *args, **kwargs: repulsive_force_hops_exp(*args, k1=10, k2=0.9, **kwargs)
                             )
+        # define force vectors
+        self.forcev = rn(
+            F1 = rn(tag='attr', description='attractive force', 
+                    v=torch.zeros_like(self.Z)
+                    ),
+            F2 = rn(tag='repl1', description='repulsive force',
+                    v=torch.zeros_like(self.Z)
+                    ),
+            F3 = rn(tag='repl2', description='biased dimension repl force',
+                    v=torch.zeros_like(self.Z)
+            )
+        )
         # To be used like the following
         # result_F = self.fmodel_attr(self) # pass the current model (with its contained embeddings) to calculate the force
         
@@ -98,9 +111,11 @@ class FDModel(Model_Base):
             unitD = torch.where(N.unsqueeze(-1)!=0, D / N.unsqueeze(-1), torch.zeros_like(D))
             return D, N, unitD
 
-        self.Fa = torch.zeros_like(self.Z).to(device)
-        self.Fr = torch.zeros_like(self.Z).to(device)
+        # Fa = torch.zeros_like(self.Z).to(device)
+        # Fr = torch.zeros_like(self.Z).to(device)
 
+        for F in self.forcev.values():
+            F.v = F.v.to(device)
         from forcedirected.utilities import optimize_batch_count
         @optimize_batch_count(max_batch_count=self.n_nodes)
         def run_batches(batch_count=1, **kwargs):
@@ -116,8 +131,11 @@ class FDModel(Model_Base):
                 ###################################
                 # this is the forward pass
                 D, N, unitD = do_pairwise(self.Z[bmask], self.Z)
-                self.Fa[bmask] = self.fmodel_attr(D, N, unitD, alpha_hops=self.alpha_hops[bmask,:]) # pass the current model (with its contained embeddings) to calculate the force
-                self.Fr[bmask] = self.fmodel_repl(D, N, unitD, hops=self.hops[bmask,:]) # pass the current model (with its contained embeddings) to calculate the force
+                # Fa[bmask] = self.fmodel_attr(D, N, unitD, alpha_hops=self.alpha_hops[bmask,:]) # pass the current model (with its contained embeddings) to calculate the force
+                # Fr[bmask] = self.fmodel_repl(D, N, unitD, hops=self.hops[bmask,:]) # pass the current model (with its contained embeddings) to calculate the force
+
+                self.forcev.F1.v[bmask] = self.fmodel_attr(D, N, unitD, alpha_hops=self.alpha_hops[bmask,:]) # pass the current model (with its contained embeddings) to calculate the force
+                self.forcev.F2.v[bmask] = self.fmodel_repl(D, N, unitD, hops=self.hops[bmask,:]) # pass the current model (with its contained embeddings) to calculate the force
                 del D, N, unitD
 
                 # batch ends
@@ -137,11 +155,12 @@ class FDModel(Model_Base):
             kwargs['batch_count'] = batch_count
             kwargs['batch_size'] = int(self.Z.shape[0]//batch_count +0.5)
             
-            ### JUST A HACK, We need this hack to avoid indexing problem with the statslog callback
-            self.fmodel_attr.F = self.Fa
-            self.fmodel_repl.F = self.Fr
+            # aggregate forces
+            F = torch.zeros_like(self.Z).to(device)
+            F = sum([F.v for F in self.forcev.values()])
 
-            F = self.random_drop(self.Fa+self.Fr, **kwargs)
+            # apply random drop
+            F = self.random_drop(F, **kwargs)
             ###################################
             # finally calculate the gradient and udpate the embeddings
             # find acceleration on each point a = F/m. And X-X0 = a*t^2, Assume X0 = 0 and t = 1
