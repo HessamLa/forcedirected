@@ -33,13 +33,14 @@ def plot_stats(method, dataset, statspath, ax=None, epoch_range=None,
     if (epoch_range is not None):
         df = df.iloc[epoch_range[0]:epoch_range[1]]
 
+    df.index = df.epoch
     # Create the figure and subplots
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(
         10, 5), gridspec_kw={'width_ratios': [1, 1]})
-    if(figtitle is None):
-        fig.suptitle(f'Pairwise distance (Dataset:{dataset}  Method:{method})')
-    elif(figtitle != ''):
-        fig.suptitle(figtitle)
+    # if(figtitle is None):
+    #     fig.suptitle(f'Pairwise distance (Dataset:{dataset}  Method:{method})')
+    # elif(figtitle != ''):
+    #     fig.suptitle(figtitle)
     ax1.set_xlabel('epoch')
     ax2.set_xlabel('epoch')
 
@@ -65,15 +66,25 @@ def plot_stats(method, dataset, statspath, ax=None, epoch_range=None,
     # Adjust the layout to accommodate the legend
     # plt.subplots_adjust(right=0.75)
     # SAVE PLOT
-    save_to = save_to or f'images/{dataset}-{method}-stats.png'
-    print(f'saving to {save_to}')
-    plt.savefig(save_to, bbox_inches='tight')
+    if(save_to):
+        save_to = save_to or f'images/pairdist-{dataset}-{method}.png'
+        print(f'saving to {save_to}')
+        plt.savefig(save_to, bbox_inches='tight')
     # Show the plot
     plt.show()
 
 path='/N/u/hessamla/BigRed200/gnn/forcedirected/embeddings-gpu-bigred200/forcedirected_v0004_128d/corafull/stats.csv'
-path='/N/u/hessamla/BigRed200/gnn/forcedirected/embeddings-gpu-debug-bigred200/forcedirected_v0006_24d/ego-facebook/stats.csv'
-plot_stats('forcedirected_v0004_128d', 'citeseer', path, save_to='images/stats-pairdist_forcedirected_v0004_128d_corafull.pdf', from_time=1200)
+path='/N/u/hessamla/BigRed200/gnn/forcedirected/embeddings-gpu-debug-bigred200/forcedirected_v0006_64d/ego-facebook/stats.csv'
+path='/N/u/hessamla/BigRed200/gnn/forcedirected/embeddings-tmp/forcedirected_v0106_128d/ego-facebook/stats.csv'
+
+dataset='ego-facebook'
+dataset='cora'
+dataset='citeseer'
+dataset='pubmed'
+method='forcedirected_v0104_128d'
+path=f'/N/u/hessamla/BigRed200/gnn/forcedirected/embeddings-tmp/{method}/{dataset}/stats.csv'
+saveto=f'images/pairdist-{dataset}-{method}.pdf'
+plot_stats(method, dataset, path, save_to=saveto, from_time=1)
 # %%
 # Directory where the embeddings and statistics are stored
 base_dir = 'embeddings-tmp'

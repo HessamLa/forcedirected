@@ -1,4 +1,5 @@
 # %%
+import os
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -43,25 +44,35 @@ def reducedim (Z, target_dim, method='PCA', **kwargs):
 
 # %%
 
+dataset = 'pubmed'
 dataset = 'ego-facebook'
-method='ge-node2vec_128d'
-method='forcedirected_v0005_128d'
-method='forcedirected_v0006_64d'
 args = rn({'edgelist': f'./datasets/{dataset}/{dataset}_edgelist.txt',
-            'embedding':f'./embeddings-gpu-debug-bigred200/{method}/{dataset}/embed-df.pkl.tmp',
-            })
-
+           'labels':f'./datasets/{dataset}/{dataset}_y.txt'})
+print(args)
 Gx = load_graph(args)
-      
+# get node degrees
+degrees = np.asarray([Gx.degree(n) for n in Gx.nodes])
+# if args.labels path exists, load labels
+labels=None
+if('labels' in args and os.path.exists(args.labels)):
+    labels = np.loadtxt(args.labels, dtype=str)
 # %%
-def drawgraph_2d(G, Z, nodes, degrees, figsize=(10,6), sizeratio=None, title=None, ax=None, add_colorbar=True):
+print(args)    
+def drawgraph_2d(G, Z, nodes, degrees, figsize=None, figheight=10,
+        sizeratio=None, title=None, ax=None, add_colorbar=True,
+        cmap=None, node_color=None,
+        ):
     plt.close("all")
-    if(sizeratio is None):
-        sizeratio = figsize[0]**2/100
 
     X = reducedim(Z, 2)
+    # find width and height of the bounding box
+    if(figsize is None):
+        w = X[:,0].max() - X[:,0].min()
+        h = X[:,1].max() - X[:,1].min()
+        figsize = (figheight*w/h, figheight)  
+    if(sizeratio is None):
+        sizeratio = figsize[0]**2.5/100
 
-    plt.scatter(X[:, 0], X[:, 1], s=np.log(degrees+1))
     
     nodes = list(G.nodes)
     pos = {nodes[i]:[X[i, 0], X[i, 1]] for i in range(len(nodes))}
@@ -70,40 +81,48 @@ def drawgraph_2d(G, Z, nodes, degrees, figsize=(10,6), sizeratio=None, title=Non
     viridis = mpl.colormaps['viridis'].resampled(128)
     
     n_color = np.asarray(degrees)
-    cmap = viridis(0.5+degrees/(max(degrees)*2))
+    if(cmap is None):
+        cmap = mpl.colormaps['viridis'].resampled(128)
+        # cmap = viridis(0.5+degrees/(max(degrees)*2))
     n_size = np.power(n_color,0.7)*sizeratio
 
     if(ax is None):
-        fig = plt.figure(figsize=figsize)
+        print("Create new matplotlib axis with size", figsize)
         # Modify here
-        ax = plt.gca() 
+        fig, ax = plt.subplots(1,1, figsize=figsize)
         ax.axis('off')
     else:
         plt.sca(ax)
         fig = ax.figure
+        print("Use the figure with size", fig.figsize)
+    
+    fig.tight_layout()
 
     # remove grid from axis
     ax.grid(False)    
 
-    viridis = mpl.colormaps['viridis'].resampled(128)
     # Set vmin and vmax to use only upper half of colormap
     vmin = .0
     vmax = .999
-    degree_ranges=np.sqrt(np.asarray(degrees)/max(degrees))
-    degree_ranges=0.05+degree_ranges*0.95
+    
+    if(node_color is None):
+        node_color=np.sqrt(np.asarray(degrees)/max(degrees))
+        node_color=0.05+node_color*0.95
     # vmin = 2
     # vmax = max(degrees)/1.1
     # vmax = 20
     # degree_ranges=np.asarray(degrees)
     # offset=1
     # degree_ranges=(1-offset+degree_ranges*offset) # offset
+    
+    # plt.scatter(X[:, 0], X[:, 1], s=np.log(degrees+1))
     nx.draw_networkx(G, pos=pos, with_labels=False, 
                     node_size=n_size, width=0.05*sizeratio,
-                    node_color=degree_ranges,
-                    cmap=viridis,
+                    node_color=node_color, 
+                    cmap=cmap, 
                     vmin=vmin, vmax=vmax)
     # make tight axis
-    ax.set_aspect('equal')
+    # ax.set_aspect('equal')
     mpl.rcParams['lines.linewidth'] = 0.001*sizeratio
 
     # add title to ax
@@ -113,22 +132,49 @@ def drawgraph_2d(G, Z, nodes, degrees, figsize=(10,6), sizeratio=None, title=Non
     return ax.figure
 
 
+method='forcedirected_v0106_128d'
+method='forcedirected_v0107_128d'
+method='forcedirected_v0108_128d'
+method='forcedirected_v0109_128d'
+method='forcedirected_v0110_128d'
+method='ge-deepwalk_128d'
+method='ge-node2vec_128d'
+method='forcedirected_v0104_128d'
+args.embedding=f'./embeddings/{method}/{dataset}/embed-df.pkl'
 
-G, A, degrees, hops = process_graph_networkx(Gx)
-print('processed graph')
-
+# Load embeddings
 Z = pd.read_pickle(args.embedding)
 Z = Z.to_numpy()
 print(Z.shape)
 
-fig, axes = plt.subplots(1,1, figsize=(10,6))
+# fig, axes = plt.subplots(1,1, figsize=(10,6))
 
-fig = drawgraph_2d(Gx, Z, list(Gx.nodes), degrees, title=f'{method} embedding {dataset}', ax=axes)
-plt.savefig(f'./plot-embeddings.pdf')
+# Get the number of labels
+# num_labels = len(np.unique(labels[:,1]))
+# # Generate color map
+# cmap = plt.cm.get_cmap('Set1', num_labels) 
+node_color=None
+if(labels is not None):
+    node_color = labels[:,1].astype(int)
+    # divide node_color array by the max
+    node_color = node_color / max(node_color)
+title=''
+# title=f'{method} embedding {dataset}'
 
-fig.show()
+fig = drawgraph_2d(Gx, Z, list(Gx.nodes), degrees, 
+                   title=title,
+                   figheight=10,
+                   node_color=node_color
+                   )
+plt.savefig(f'./images/plot-embeddings-{method}-{dataset}.pdf')
+plt.savefig(f'./images/plot-embeddings-{method}-{dataset}.svg')
+plt.savefig(f'./images/plot-embeddings-{method}-{dataset}.png')
 
+# fig.show()
 
+# %%
+G, A, degrees, hops = process_graph_networkx(Gx)
+print('processed graph')
 # %%
 dataset_args=rn()
 dataset = 'ego-facebook'
@@ -188,6 +234,7 @@ method='node2vec'
 method='nodeforce'
 method='deepwalk'
 dataset='ego-facebook'
+dataset='pubmed'
 for dataset in ['cora', 'ego-facebook']:
     try:
         Gx, data = load_graph_networkx(datasetname=dataset, rootpath='./datasets')
