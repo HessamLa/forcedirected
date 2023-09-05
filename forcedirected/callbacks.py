@@ -9,7 +9,7 @@ from .utilityclasses import Callback_Base
 from .utilities import ReportLog
 from .utilities import optimize_batch_count
 
-import .utilities.RecursiveNamespace as rn
+from .utilities import RecursiveNamespace as rn
 
 @torch.no_grad()
 def make_hops_stats_old(Z, hops, maxhops):
@@ -134,16 +134,16 @@ def make_hops_stats(Z, hops, maxhops, batch_count=1, *args, **kwargs):
 summary_stats = lambda x: (torch.sum(x).item(), torch.mean(x).item(), torch.std(x).item())
 
 def make_force_stats(model):
-    s=rn(f_mag_sum=0, f_mag_wsum=0)
+    s=rn()
+    s.f_mag=rn(sum=0, wsum=0)
     f_all=torch.zeros_like(model.Z)
     for F in model.forcev.values():
-        print(F.tag)
-        _sum, _mean, _std = summary_stats( torch.norm(F.V, dim=1) )
-        _wsum, _wmean, _wstd = summary_stats( torch.norm(F.v, dim=1) )*model.degrees
+        _sum, _mean, _std = summary_stats( torch.norm(F.v, dim=1) )
+        _wsum, _wmean, _wstd = summary_stats( torch.norm(F.v, dim=1)*model.degrees )
 
         s[F.tag]=rn(sum=_sum, mean=_mean, std=_std, wsum=_wsum, wmean=_wmean, wstd=_wstd)
-        s.f_mag_sum += _sum
-        s.f_mag_wsum += _wsum
+        s.f_mag.sum += _sum
+        s.f_mag.wsum += _wsum
 
         # s[f'{F.tag}-sum'], s[f'{F.tag}-mean'], s[f'{F.tag}-std'] = summary_stats( torch.norm(F.V, dim=1) )
         # s[f'{F.tag}-w-sum'], s[f'{F.tag}-w-mean'], s[f'{F.tag}-w-std'] = summary_stats( torch.norm(F.v, dim=1) )*model.degrees
@@ -176,9 +176,10 @@ def make_stats_log(model, epoch):
     logstr = ''
     s = rn({'epoch': epoch})
     s.update(make_hops_stats(model.Z, model.hops, model.maxhops))
-    s.force_stats=make_force_stats(model)
-    s.reloc_stats=make_relocation_stats(model)
-    
+    force_stats=make_force_stats(model)
+    relocs=make_relocation_stats(model)
+    s.update(force_stats)
+    s.update(relocs)
     # summary_stats = lambda x: (torch.sum(x).item(), torch.mean(x).item(), torch.std(x).item())
 
     # # attractive forces
@@ -216,21 +217,32 @@ def make_stats_log(model, epoch):
     for k,v in s.items():
         if(type(v) is torch.Tensor):
             s[k] = v.item()
-
+        
     # make the log string
     logstr = ''
-    for k,v in s..items():
-    for k,v in s.items():
-        logstr += f"{k}:{v:<9.3f}  "
+    for F in model.forcev.values():
+        k,v=F.tag, force_stats[F.tag]
+        logstr += f"{k}:{v.sum:.3f}({v.mean:.3f})  "
     
-    logstr = f"attr:{s['fa-sum']:<9.3f}({s['fa-mean']:.3f})  "
-    logstr+= f"repl:{s['fr-sum']:<9.3f}({s['fr-mean']:.3f})  "
-    logstr+= f"wattr:{s['wfa-sum']:<9.3f}({s['wfa-mean']:.3f})  "
-    logstr+= f"wrepl:{s['wfr-sum']:<9.3f}({s['wfr-mean']:.3f})  "
-    logstr+= f"sum-all:{s['f-all']:<9.3f}  "
-    logstr+= f"relocs:{s['relocs-sum']:<9.3f}({s['relocs-mean']:.3f})  "
-    logstr+= f"weighted-relocs:{s['wrelocs-sum']:<9.3f}({s['wrelocs-mean']:.3f})  "
-
+    logstr+= f"f-all:{force_stats['f-all']:<9.3f}  "
+    
+    for F in model.forcev.values():
+        k,v=F.tag, force_stats[F.tag]
+        logstr += f"w{k}:{v.wsum:.3f}({v.wmean:.3f})  "
+    
+    logstr+= f"relocs:{relocs.sum:.3f}({relocs.mean:.3f})  "
+    logstr+= f"wrelocs:{relocs.wsum:.3f}({relocs.wmean:.3f})  "
+    
+    # logstr = f"attr:{s['fa-sum']:<9.3f}({s['fa-mean']:.3f})  "
+    # logstr+= f"repl:{s['fr-sum']:<9.3f}({s['fr-mean']:.3f})  "
+    # logstr+= f"wattr:{s['wfa-sum']:<9.3f}({s['wfa-mean']:.3f})  "
+    # logstr+= f"wrepl:{s['wfr-sum']:<9.3f}({s['wfr-mean']:.3f})  "
+    # logstr+= f"sum-all:{s['f-all']:<9.3f}  "
+    # logstr+= f"relocs:{s['relocs-sum']:<9.3f}({s['relocs-mean']:.3f})  "
+    # logstr+= f"weighted-relocs:{s['wrelocs-sum']:<9.3f}({s['wrelocs-mean']:.3f})  "
+    s = s.to_dict(flatten_sep='_')
+    # from pprint import pprint
+    # pprint(s)
     return s, logstr
 
 class StatsLog (Callback_Base):
