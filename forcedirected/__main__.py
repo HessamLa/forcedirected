@@ -30,7 +30,7 @@ def process_arguments(
                 OUTPUTDIR_ROOT='./embeddings-tmp',
                 DATASET_CHOICES=['tinygraph', 'cora', 'citeseer', 'pubmed', 'ego-facebook', 'corafull', 'wiki', 'blogcatalog', 'flickr', 'youtube'],
                 # MODEL_VERSION_CHOICES=['1','2','3','104','4nodrop', '5', '5z2', '6', '7'],
-                MODEL_VERSION_CHOICES=['104'],
+                MODEL_VERSION_CHOICES=['104', '106', '107', '108', '109', '110', '110k100'],
                 NDIM=128, ALPHA=0.3,
                 ):
     
@@ -87,11 +87,12 @@ def process_arguments(
         input("Enter a key to continue...")
 
     if(args.fdversion=='104'):          from .models.model_104 import FDModel
-    elif(args.fdversion=='4nodrop'):    from .models.model_4nodrop import FDModel
-    elif(args.fdversion=='5'):          from .models.model_5 import FDModel
-    elif(args.fdversion=='5z2'):          from .models.model_5z2 import FDModel
-    elif(args.fdversion=='6'):          from .models.model_6 import FDModel
-    elif(args.fdversion=='7'):          from .models.model_7 import FDModel
+    elif(args.fdversion=='106'):          from .models.model_106 import FDModel
+    elif(args.fdversion=='107'):          from .models.model_107 import FDModel
+    elif(args.fdversion=='108'):          from .models.model_108 import FDModel
+    elif(args.fdversion=='109'):          from .models.model_109 import FDModel
+    elif(args.fdversion=='110'):          from .models.model_110 import FDModel
+    elif(args.fdversion=='110k100'):      from .models.model_110k100 import FDModel
     args.FDModel = FDModel
 
     if(args.outputdir is None):
@@ -179,12 +180,13 @@ if __name__ == '__main__':
             super().__init__(**kwargs)
 
         def on_epoch_end(self, fd_model, epoch, **kwargs):
-            Fa = torch.norm(fd_model.fmodel_attr.F, dim=1)
-            Fa = torch.sum(Fa).item()
-            Fr = torch.norm(fd_model.fmodel_repl.F, dim=1)
-            Fr = torch.sum(Fr).item()
+            Fmean=torch.zeros_like(fd_model.Z)
+            for F in model.forcev.values():
+                Fmean += F.v
+            Fmean = torch.mean(torch.norm(Fmean, dim=1)).item()
+            print(f"Early stop check: Fmean={Fmean:.3f}")
             # if absolute difference of Fa and Fr is less than 1e-3, stop training
-            if(abs(Fa-Fr)<1e-3):
+            if(abs(Fmean)<1e-3):
                 fd_model.stop_training = True
                 print("Early Stopping")
                 
