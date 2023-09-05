@@ -9,7 +9,7 @@ from forcedirected.utilities.graphtools import process_graph_networkx
 from forcedirected.utilities import batchify
 
 from forcedirected.algorithms import get_alpha_hops, pairwise_difference
-from forcedirected.Functions import attractive_force_ahops, repulsive_force_hops_exp
+from forcedirected.Functions import attractive_force_ahops, repulsive_force_exp_hops_x_2
 
 from forcedirected.Functions import DropSteadyRate, DropLinearChange, DropExponentialDimish
 from forcedirected.Functions import generate_random_points
@@ -27,8 +27,8 @@ def check_gpu_memory():
 
 class FDModel(Model_Base):
     """Force Directed Model"""
-    VERSION="0104"
-    DESCRIPTION="Exponential Decay repulsive(k1=10, k2=0.9), alpha={alpha}"
+    VERSION="0107"
+    DESCRIPTION="Same as v104. repulsive_force_exp_hops_x_2(default values), alpha={alpha}"
     def __str__(self):
         return f"FDModel v{FDModel.VERSION},{FDModel.DESCRIPTION}"
     
@@ -59,21 +59,21 @@ class FDModel(Model_Base):
         self.fmodel_attr = ForceClass(name='attractive_force_ahops', 
                             func=lambda *args, **kwargs: attractive_force_ahops(*args, k1=1, k2=1, **kwargs)
                             )
-        self.fmodel_repl = ForceClass(name='repulsive_force_hops_exp',
+        self.fmodel_repl = ForceClass(name='repulsive_force_exp_hops_x_2',
                             #  func=lambda fd_model: repulsive_force_hops_exp(fd_model.D, fd_model.N, fd_model.unitD, torch.tensor(fd_model.hops).to(fd_model.device), k1=10, k2=0.9)
-                            func=lambda *args, **kwargs: repulsive_force_hops_exp(*args, k1=10, k2=0.9, **kwargs)
+                            func=lambda *args, **kwargs: repulsive_force_exp_hops_x_2(*args, **kwargs)
                             )
         # define force vectors
         self.forcev = rn(
             F1 = rn(tag='attr', description='attractive force', 
                     v=torch.zeros_like(self.Z)
                     ),
-            F2 = rn(tag='repl1', description='repulsive force',
+            F2 = rn(tag='repl', description='repulsive force',
                     v=torch.zeros_like(self.Z)
                     ),
-            F3 = rn(tag='repl2', description='biased dimension repl force',
-                    v=torch.zeros_like(self.Z)
-            )
+            # F3 = rn(tag='repl', description='biased dimension repl force',
+            #         v=torch.zeros_like(self.Z)
+            # )
         )
         # To be used like the following
         # result_F = self.fmodel_attr(self) # pass the current model (with its contained embeddings) to calculate the force

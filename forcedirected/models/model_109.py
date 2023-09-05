@@ -18,17 +18,35 @@ from forcedirected.utilityclasses import Model_Base
 import forcedirected.utilities.RecursiveNamespace as rn
 import torch
 
-# Function to check available GPU memory
-def check_gpu_memory():
-    import gc
-    torch.cuda.empty_cache()
-    gc.collect()
-    return torch.cuda.memory_allocated(), torch.cuda.memory_reserved()
+def force_exp_x(D, N, unitD, A, k1=1, k2=1, return_sum=True):
+    """
+    f(x) = k1*A*exp(-x/k2)
+    D (n,n,d) is the pairwaise difference (force). M[i,j]=P[j]-P[i], from i to j
+    N (n,n) is norm of each pairwise diff element, i.e x.
+    unitD (n,n,d) is the unit direction, D/N
+
+    A (n,n) or (n,n,d) is the coefficient for each 
+    k1 is the amplifying factor, scalar: k1*f(x)
+    k2 is decaying factor factor, scalar: f(x/k2)
+    """
+    n = D.shape[0] # total number of nodes
+    
+    # force amplitudes is the main part the algorithm
+    # calculate forces amplitude
+    F = k1*torch.exp(-N/k2)
+
+    # apply negative direction
+    F = A * unitD * F.unsqueeze(-1)
+    
+    if(return_sum):
+        F = F.mean(axis=1) # sum the i-th row to get all forces to i
+
+    return F
 
 class FDModel(Model_Base):
     """Force Directed Model"""
-    VERSION="0104"
-    DESCRIPTION="Exponential Decay repulsive(k1=10, k2=0.9), alpha={alpha}"
+    VERSION="0109"
+    DESCRIPTION="Same as 108. Decaying biased dim starting from 100. Exponential Decay repulsive(k1=10, k2=0.9), alpha={alpha}"
     def __str__(self):
         return f"FDModel v{FDModel.VERSION},{FDModel.DESCRIPTION}"
     
@@ -44,13 +62,15 @@ class FDModel(Model_Base):
         Gnk, A, degrees, hops = process_graph_networkx(Gx)
         
         self.degrees = degrees
-        self.hops = hops
 
         # find max hops
         self.maxhops = max(hops[hops<=self.n_nodes]) # hops<=n to exclude infinity values
         hops[hops>self.maxhops]=self.maxhops+1  # disconncted nodes are 'maxhops+1' hops away, to avoid infinity
+        self.hops = hops
         print("max hops:", self.maxhops)
-        
+
+        self.dim_bias = np.array([1+i*4//self.n_dims for i in range(self.n_dims)])
+
         self.alpha_hops = np.apply_along_axis(get_alpha_hops, axis=1, arr=self.hops, alpha=self.alpha)
         
         self.random_points_generator = random_points_generator
@@ -62,6 +82,9 @@ class FDModel(Model_Base):
         self.fmodel_repl = ForceClass(name='repulsive_force_hops_exp',
                             #  func=lambda fd_model: repulsive_force_hops_exp(fd_model.D, fd_model.N, fd_model.unitD, torch.tensor(fd_model.hops).to(fd_model.device), k1=10, k2=0.9)
                             func=lambda *args, **kwargs: repulsive_force_hops_exp(*args, k1=10, k2=0.9, **kwargs)
+                            )
+        self.fmodel_repl_biased = ForceClass(name='force_exp_x',
+                            func=lambda *args, **kwargs: force_exp_x(*args, k1=10, k2=0.9, **kwargs)
                             )
         # define force vectors
         self.forcev = rn(
@@ -97,6 +120,8 @@ class FDModel(Model_Base):
         self.notify_train_begin_callbacks(**kwargs)
 
         self.hops = torch.tensor(self.hops).to(device)
+        self.dim_bias = torch.tensor(self.dim_bias).to(device)
+        
         self.alpha_hops = torch.tensor(self.alpha_hops).to(device)
         self.degrees = torch.tensor(self.degrees).to(device) # mass of a node is equivalent to its degree
         self.Z = self.Z.to(device)
@@ -126,12 +151,26 @@ class FDModel(Model_Base):
                 
                 ###################################
                 # this is the forward pass
+                hops=self.hops[bmask,:]
                 D, N, unitD = do_pairwise(self.Z[bmask], self.Z)
                 # Fa[bmask] = self.fmodel_attr(D, N, unitD, alpha_hops=self.alpha_hops[bmask,:]) # pass the current model (with its contained embeddings) to calculate the force
                 # Fr[bmask] = self.fmodel_repl(D, N, unitD, hops=self.hops[bmask,:]) # pass the current model (with its contained embeddings) to calculate the force
 
+                
+                # create the biased dimension matrix
+                dim_bias = torch.tensor([2+i*10//self.n_dims for i in range(self.n_dims)])
+                dim_bias[dim_bias>=4] = 4 # 10% is 2, 10% is 3 and the rest is 4
+                
+                mat_dim_bias = self.dim_bias.reshape(1, 1, -1).repeat(D.shape[0], D.shape[1], 1)
+                mat_dim_bias = mat_dim_bias<=hops[...,None] # for hops 0 and 1 is False. For the rest it is True
+                mat_dim_bias = mat_dim_bias.type(torch.int)
+
+                mat_dim_bias = torch.where(hops[...,None]>=2, mat_dim_bias/(hops[...,None]-1), torch.zeros_like(mat_dim_bias))
+                mat_dim_bias *= 100
+                
                 self.forcev.F1.v[bmask] = self.fmodel_attr(D, N, unitD, alpha_hops=self.alpha_hops[bmask,:]) # pass the current model (with its contained embeddings) to calculate the force
-                self.forcev.F2.v[bmask] = self.fmodel_repl(D, N, unitD, hops=self.hops[bmask,:]) # pass the current model (with its contained embeddings) to calculate the force
+                self.forcev.F2.v[bmask] = self.fmodel_repl(D, N, unitD, hops=hops) # pass the current model (with its contained embeddings) to calculate the force
+                self.forcev.F3.v[bmask] = self.fmodel_repl_biased(D, N, unitD, A=-mat_dim_bias) # pass the current model (with its contained embeddings) to calculate the force
                 del D, N, unitD
 
                 # batch ends
