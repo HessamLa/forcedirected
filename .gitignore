@@ -4,6 +4,7 @@ embeddings*
 tmplog
 test*
 images
+*.pdf
 #embeddings*/
 
 # Byte-compiled / optimized / DLL files
