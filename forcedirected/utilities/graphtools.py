@@ -141,6 +141,18 @@ def process_graph_networkx(Gx):
     
     return (G, A, degrees, hops)
 
+
+def get_hops(Gx):
+    G = nk.nxadapter.nx2nk(Gx)
+    n = G.numberOfNodes()
+    asps = nk.distance.APSP(G)
+    asps.run()
+    # all pair hops distance
+    hops = asps.getDistances(asarray=True)
+    print(f'networkit hops mean: {hops[hops<=n].mean():.3f}')
+    hops[hops>n] = np.inf
+    return hops
+    
 import random
 def remove_random_edges(G, ratio):
     G = nk.nxadapter.nx2nk(G)
