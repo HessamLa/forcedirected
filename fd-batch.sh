@@ -89,9 +89,9 @@ function run_sbatch_script() {
   echo $program_cmd
 
   if [ $PARTITION = 'gpu' ] || [ $PARTITION = 'gpu-debug' ]; then
-    sbatch_flags="-p $PARTITION -A general --time=$TIME -J $ndim-$dataset_name --nodes=1 --ntasks-per-node=1 --gpus-per-node=1 --mem=200G"
+    sbatch_flags="-p $PARTITION -A r00372 --time=$TIME -J $ndim-$dataset_name --nodes=1 --ntasks-per-node=1 --gpus-per-node=1 --mem=200G"
   elif [ $PARTITION = 'general' ] || [ $PARTITION = 'debug' ]; then
-    sbatch_flags="-p $PARTITION -A general --time=$TIME -J $ndim-$dataset_name --nodes=1 --ntasks-per-node=1 --mem=200G"
+    sbatch_flags="-p $PARTITION -A r00372 --time=$TIME -J $ndim-$dataset_name --nodes=1 --ntasks-per-node=1 --mem=200G"
   fi
   sbatch_flags="$sbatch_flags -o $LOGDIR/fd-%j-$ndim-$dataset_name.txt -e $LOGDIR/fd-%j-$ndim-$dataset_name.err"
   sbatch $sbatch_flags --wrap "$MODULE_CMD; $program_cmd"
