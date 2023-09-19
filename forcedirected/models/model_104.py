@@ -42,7 +42,8 @@ class FDModel(Model_Base):
         self.n_dims = n_dims
         self.alpha = alpha
         Gnk, A, degrees, hops = process_graph_networkx(Gx)
-        
+        self.lr = kwargs.get('lr', 1.0)
+
         self.degrees = degrees
         self.hops = hops
 
@@ -163,7 +164,7 @@ class FDModel(Model_Base):
             self.dZ = torch.where(self.degrees[..., None] != 0, 
                                     F / self.degrees[..., None], 
                                     torch.zeros_like(F))
-            self.Z += self.dZ
+            self.Z += self.dZ*self.lr
         
             self.notify_epoch_end_callbacks(**kwargs)
         # epoch ends            

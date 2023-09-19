@@ -1,7 +1,6 @@
 #!/bin/bash
 
 FD_VERSION='4'
-FD_VERSION='4nodrop'
 FD_VERSION='5'
 FD_VERSION='5z2'
 # FD_VERSION='6'
@@ -13,6 +12,7 @@ FD_VERSION='108'
 FD_VERSION='109'
 FD_VERSION='110'
 FD_VERSION='110k100'
+FD_VERSION='4nodrop'
 
 # PROGRAM_RUN_CMD="python3 main.py --epochs 5000 --fdversion $FD_VERSION"
 PROGRAM_RUN_CMD="python3 -m forcedirected --epochs 5000 --fdversion $FD_VERSION"
@@ -85,6 +85,7 @@ function run_sbatch_script() {
 
   program_cmd="$PROGRAM_RUN_CMD -d $dataset_name --ndim $ndim"
   # program_cmd="$program_cmd --outputdir_root ./embeddings-$PARTITION-$LOGIN_NODE"
+  program_cmd="$program_cmd --save-stats-every 1"
   program_cmd="$program_cmd --outputdir_root ./embeddings-tmp"
   echo $program_cmd
 
@@ -115,10 +116,11 @@ echo Login Node: $LOGIN_NODE >> slurm-jobids.txt
 # run_sbatch_script corafull 24 forcedirected
 
 # for method in forcedirected node2vec deepwalk line sdne struc2vec; do
-for ndim in 24 32 64 128 12; do
-# for ndim in 24; do
+# for ndim in 24 32 64 128 12; do
+for ndim in 128; do
   for method in forcedirected; do
-    for dataset_name in cora citeseer ego-facebook wiki pubmed corafull ; do
+    # for dataset_name in cora citeseer ego-facebook wiki pubmed corafull ; do
+    for dataset_name in cora ; do
       run_sbatch_script "$dataset_name" "$ndim" "$method" >> slurm-jobids.txt 2>&1
     done
   done
