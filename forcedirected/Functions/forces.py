@@ -13,11 +13,10 @@ def repulsive_force_exp(D, N, unitD, k1=1, k2=1, return_sum=True):
     k1 is amplitude factor, scalar: k1*f(x) 
     k2 is decaying factor factor, scalar: f(x/k2)
     """
-    n = D.shape[0] # total number of nodes
     
     # force amplitudes is the main part the algorithm
     # calculate forces amplitude
-    F = k1/n * torch.exp(-N/k2)
+    F = k1 * torch.exp(-N/k2)
 
     # apply negative direction
     F = -unitD * F.unsqueeze(-1)
