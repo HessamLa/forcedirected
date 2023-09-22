@@ -169,7 +169,7 @@ def make_relocation_stats(model):
     _sum, _mean, _std = summary_stats( torch.norm(model.dZ, dim=1) )
     _wsum, _wmean, _wstd = summary_stats( torch.norm(model.dZ, dim=1)*model.degrees )
     
-    s = rn(sum=_sum, mean=_mean, std=_std, wsum=_wsum, wmean=_wmean, wstd=_wstd)
+    s = rn(dz_sum=_sum, dz_mean=_mean, dz_std=_std, dz_wsum=_wsum, dz_wmean=_wmean, dz_wstd=_wstd)
     return s
 
 def make_stats_log(model, epoch):
@@ -224,7 +224,7 @@ def make_stats_log(model, epoch):
         k,v=F.tag, force_stats[F.tag]
         logstr += f"{k}:{v.sum:.3f}({v.mean:.3f})  "
     
-    logstr+= f"f-all:{force_stats['f-all']:<9.3f}  "
+    logstr+= f"f-all:{force_stats['f-all']:<9.5f}  "
     
     for F in model.forcev.values():
         k,v=F.tag, force_stats[F.tag]
@@ -305,6 +305,11 @@ class StatsLog (Callback_Base):
         # Save DataFrame to a CSV file
         # temp_filename = self.stats_filepath+'_tmp'
         self.statsdf.to_csv(self.stats_filepath, index=False)
+        
+        pklpath = self.stats_filepath
+        if(pklpath.endswith('.csv')): pklpath = pklpath[:-4]
+        pklpath = pklpath+'.pkl'
+        self.statsdf.to_pickle(pklpath)
         # Rename the temporary file to the final filename
         # os.rename(temp_filename, self.stats_filepath)
         logstr = f"Epoch {epoch+1}/{kwargs['epochs']}  ({kwargs['batch_count']} batches) | {statstr}"
@@ -317,10 +322,12 @@ class StatsLog (Callback_Base):
     def on_epoch_end(self, fd_model, epoch, **kwargs):
         self.statlog.debug(f"   Batch size: {kwargs['batch_size']}")
         self.save_embeddings(fd_model, **kwargs)
-        if(epoch % self.save_stats_every == 0):
-            self.update_stats(fd_model, epoch, **kwargs)
-        if(epoch % self.save_history_every == 0):
-            self.save_history(fd_model, **kwargs)
+        if(self.save_stats_every > 0):
+            if(epoch % self.save_stats_every == 0):
+                self.update_stats(fd_model, epoch, **kwargs)
+        if(self.save_history_every > 0):
+            if(epoch % self.save_history_every == 0):
+                self.save_history(fd_model, **kwargs)
             
     def on_batch_end(self, fd_model, batch, **kwargs):
         self.statlog.debug(f"   Batch {batch}/{kwargs['batch_count']}")
