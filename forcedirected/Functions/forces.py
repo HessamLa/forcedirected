@@ -116,11 +116,10 @@ def repulsive_force_hops_exp(D, N, unitD, hops, k1=1, k2=1, return_sum=True):
     k1 is amplitude factor, scalar: k1*f(x) 
     k2 is decaying factor factor, scalar: f(x/k2)
     """
-    n = D.shape[0] # total number of nodes
     
     # force amplitudes is the main part the algorithm
     # calculate forces amplitude
-    F = k1/n * hops * torch.exp(-N/k2)
+    F = k1 * hops * torch.exp(-N/k2)
 
     # apply negative direction
     F = -unitD * F.unsqueeze(-1)
@@ -208,7 +207,6 @@ def repulsive_force_ahops_recip_x(D, N, unitD, alpha_hops, k1=1, k2=1, return_su
 #     print(t)
 
 # test_repulsive_force_ahops_recip_x()
-
 def attractive_force_ahops(D, N, unitD, alpha_hops, k1=1, k2=1, return_sum=True):
     """
     D (n,n,d) is the pairwaise difference (force). M[i,j]=P[j]-P[i], from i to j
@@ -234,6 +232,31 @@ def attractive_force_ahops(D, N, unitD, alpha_hops, k1=1, k2=1, return_sum=True)
 
     return F
     
+def attractive_force_base(D, N, unitD, e_hops, k1=1, k2=1, return_sum=True):
+    """
+    D (n,n,d) is the pairwaise difference (force). D[i,j]=Z[j]-Z[i], from i to j
+    N (n,n) is norm of each pairwise diff element, i.e x.
+    unitD (n,n,d) is the unit direction, D/N
+
+    e_hops (n,n) is the coefficient for each hop-distant neighbor
+        e_hops[i,j] = e^-(h-1) where h is hops-distance between i,j
+    k1 is amplitude factor: k1*f(x)
+    k2 is intensity factor factor over distance: f(x^k2)
+    """
+    # calculate the amplitude
+    F = k1 * e_hops * N
+    
+    # finally apply the direction
+    F = unitD * F.unsqueeze(-1)
+
+    if(return_sum):
+        F = F.sum(axis=1) # sum the i-th row to get all forces to i
+
+        # print("After sum")
+        # print("F[2]\n", F[2])
+
+    return F
+
 if __name__ == "__main__":
     import networkx as nx
 
