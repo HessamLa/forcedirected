@@ -255,3 +255,56 @@ if __name__ == '__main__':
 
 if __name__=='__main__':
     pass
+
+
+class RecursiveNamespace_2():
+    def __init__(self, d=None, **kwargs) -> None:
+        if(isinstance(d, dict)):
+            kwargs.update(d)
+        elif(d is not None):
+            kwargs['d'] = d
+        self.update(**kwargs)
+    def update(self, **kwargs):
+        self.__dict__.update(kwargs)
+        for key, val in kwargs.items():
+            if(isinstance(val, dict)):
+                val = self.__class__(**val)
+            
+            self.__dict__[key] = val
+            
+            # elif(isinstance(val, self.__class__.__name__)):
+            #     self.__dict__[key] = val
+        
+    def __repr__(self) -> str:
+        return str(self.__dict__)
+    def __str__(self) -> str:
+        return str(self.__dict__)
+    def __getitem__(self, key):
+        return self.__dict__[key]
+    def __setitem__(self, key, value):
+        self.__dict__[key] = value
+    def __delitem__(self, key):
+        del self.__dict__[key]
+    def __contains__(self, key):
+        return key in self.__dict__
+    def __iter__(self):
+        return iter(self.__dict__)
+    def __len__(self):
+        return len(self.__dict__)
+    def keys(self):
+        return self.__dict__.keys()
+    def values(self):
+        return self.__dict__.values()
+    def items(self):
+        return self.__dict__.items()
+    def get(self, key, default=None):
+        return self.__dict__.get(key, default)
+    def copy(self, deep=False):
+        if(deep):
+            return self.__class__(**self.__dict__)
+        else:
+            return self.__class__(**self.__dict__)
+    def to_dict(self):
+        return self.__dict__
+    def from_dict(self, d):
+        self.__dict__.update(d)

@@ -230,8 +230,8 @@ def make_stats_log(model, epoch):
         k,v=F.tag, force_stats[F.tag]
         logstr += f"w{k}:{v.wsum:.3f}({v.wmean:.3f})  "
     
-    logstr+= f"relocs:{relocs.sum:.3f}({relocs.mean:.3f})  "
-    logstr+= f"wrelocs:{relocs.wsum:.3f}({relocs.wmean:.3f})  "
+    logstr+= f"relocs:{relocs.dz_sum:.3f}({relocs.dz_mean:.3f})  "
+    logstr+= f"wrelocs:{relocs.dz_wsum:.3f}({relocs.dz_wmean:.3f})  "
     
     # logstr = f"attr:{s['fa-sum']:<9.3f}({s['fa-mean']:.3f})  "
     # logstr+= f"repl:{s['fr-sum']:<9.3f}({s['fr-mean']:.3f})  "
@@ -245,17 +245,51 @@ def make_stats_log(model, epoch):
     # pprint(s)
     return s, logstr
 
+class SaveEmbedding (Callback_Base):
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
+        # self.emb_filepath_tmp = f"{self.args.outputdir}/{self.args.outputfilename}.tmp" # the path to store the latest embedding
+        self.args=kwargs['args']
+        
+        self.save_history_every = self.args.save_history_every
+        self.hist_filepath = f"{self.args.outputdir}/{self.args.historyfilename}" # the path to APPEND the latest embedding
+        
+        self.emb_filepath = os.path.join(self.args.outputdir, self.args.outputfilename) # the path to store the final embedding
+        self.emb_filepath_tmp = os.path.join(self.args.outputdir, f"{self.args.outputfilename}.tmp") # the path to store the latest embedding
+        os.system(f"rm -f {self.emb_filepath_tmp} {self.emb_filepath}") # remove the old embedding files
+
+    def save_history(self, fd_model, **kwargs):
+        emb = fd_model.get_embeddings()
+        # save embeddings history
+        with open(self.hist_filepath, "ab") as f: # append embeddings
+            pickle.dump(emb, f)
+
+    def save_embeddings(self, fd_model, **kwargs):
+        emb = fd_model.get_embeddings()
+        # save embeddings as pandas df
+        df = pd.DataFrame(emb, index=fd_model.Gx.nodes())
+        df.to_pickle(self.emb_filepath_tmp)
+    
+    def on_epoch_end(self, fd_model, epoch, **kwargs):
+        self.save_embeddings(fd_model, **kwargs)
+        if(self.save_history_every > 0):
+            if(epoch % self.save_history_every == 0):
+                self.save_history(fd_model, **kwargs)
+    
+    def on_train_end(self, fd_model, epochs, **kwargs):
+        self.save_embeddings(fd_model, **kwargs)
+        self.save_history(fd_model, **kwargs)
+        # rename the temporary embedding file
+        # os.rename(self.emb_filepath_tmp, self.emb_filepath)
+        # I don't trust os.rename. So I use system command instead
+        os.system(f"mv {self.emb_filepath_tmp} {self.emb_filepath}")
+
 class StatsLog (Callback_Base):
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self.args=kwargs['args']
-        self.emb_filepath_tmp = f"{self.args.outputdir}/{self.args.outputfilename}.tmp" # the path to store the latest embedding
-        self.emb_filepath = f"{self.args.outputdir}/{self.args.outputfilename}" # the path to store the final embedding
-        os.system(f"rm -f {self.emb_filepath_tmp} {self.emb_filepath}") # remove the old embedding files
 
-        self.hist_filepath = f"{self.args.outputdir}/{self.args.historyfilename}" # the path to APPEND the latest embedding
         self.stats_filepath = f"{self.args.outputdir}/{self.args.statsfilename}" # the path to save the latest stats
-        self.save_history_every = self.args.save_history_every
         self.save_stats_every = self.args.save_stats_every
         self.statsdf = pd.DataFrame()
         # self.logger = ReportLog(self.args.logfilepath)
@@ -277,19 +311,6 @@ class StatsLog (Callback_Base):
         self.statlog.addHandler(console_handler)
         ############################################
     
-
-    def save_embeddings(self, fd_model, **kwargs):
-        emb = fd_model.get_embeddings()
-        # save embeddings as pandas df
-        df = pd.DataFrame(emb, index=fd_model.Gx.nodes())
-        df.to_pickle(self.emb_filepath_tmp) # save to temporary file. will be renamed in train done
-    
-    def save_history(self, fd_model, **kwargs):
-        emb = fd_model.get_embeddings()
-        # save embeddings history
-        with open(self.hist_filepath, "ab") as f: # append embeddings
-            pickle.dump(emb, f)
-
     def update_stats(self, fd_model, epoch, **kwargs):
         # make stats and logs
         stats, statstr = make_stats_log(fd_model, epoch)
@@ -321,13 +342,10 @@ class StatsLog (Callback_Base):
 
     def on_epoch_end(self, fd_model, epoch, **kwargs):
         self.statlog.debug(f"   Batch size: {kwargs['batch_size']}")
-        self.save_embeddings(fd_model, **kwargs)
         if(self.save_stats_every > 0):
             if(epoch % self.save_stats_every == 0):
                 self.update_stats(fd_model, epoch, **kwargs)
-        if(self.save_history_every > 0):
-            if(epoch % self.save_history_every == 0):
-                self.save_history(fd_model, **kwargs)
+
             
     def on_batch_end(self, fd_model, batch, **kwargs):
         self.statlog.debug(f"   Batch {batch}/{kwargs['batch_count']}")
@@ -337,12 +355,7 @@ class StatsLog (Callback_Base):
         print("on_train_end() ---+-----+--- train ended here")
         kwargs['epochs']=epochs
         self.statlog.debug("Final save")
-        self.save_embeddings(fd_model, **kwargs)
         self.update_stats(fd_model, **kwargs)
-        self.save_history(fd_model, **kwargs)
 
-        # rename the temporary embedding file
-        # os.rename(self.emb_filepath_tmp, self.emb_filepath)
-        # I don't trust os.rename. So I use system command instead
-        os.system(f"mv {self.emb_filepath_tmp} {self.emb_filepath}")
+
         

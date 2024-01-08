@@ -9,7 +9,8 @@ class Callback_Base:
     def on_train_begin(self, fd_model, epochs, **kwargs):   pass
     def on_train_end(self, fd_model, epochs, **kwargs):     pass
 
-class Model_Base:
+import torch
+class Model_Base():
     def __init__(self, **kwargs) -> None:
         self.callbacks = []
         self.stop_training = False
@@ -53,7 +54,3 @@ class Model_Base:
         for callback in self.callbacks:
             callback.on_train_end(self, epochs, **kwargs)
         pass
-
-class ForceDirected(Model_Base):
-    def __init__(self, **kwargs) -> None:
-        super().__init__(**kwargs)

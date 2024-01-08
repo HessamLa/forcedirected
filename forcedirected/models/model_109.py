@@ -29,7 +29,7 @@ def force_exp_x(D, N, unitD, A, k1=1, k2=1, return_sum=True):
     k1 is the amplifying factor, scalar: k1*f(x)
     k2 is decaying factor factor, scalar: f(x/k2)
     """
-    n = D.shape[0] # total number of nodes
+    n = D.shape[1] # total number of nodes
     
     # force amplitudes is the main part the algorithm
     # calculate forces amplitude
@@ -50,14 +50,14 @@ class FDModel(Model_Base):
     def __str__(self):
         return f"FDModel v{FDModel.VERSION},{FDModel.DESCRIPTION}"
     
-    def __init__(self, Gx, n_dims, alpha:float,
+    def __init__(self, Gx, n_dim, alpha:float,
                 random_points_generator:callable = generate_random_points, 
                 **kwargs):
         
         super().__init__(**kwargs)
         self.Gx = Gx
         self.n_nodes = Gx.number_of_nodes()
-        self.n_dims = n_dims
+        self.n_dim = n_dim
         self.alpha = alpha
         Gnk, A, degrees, hops = process_graph_networkx(Gx)
         self.lr = kwargs.get('lr', 1.0)
@@ -70,12 +70,12 @@ class FDModel(Model_Base):
         self.hops = hops
         print("max hops:", self.maxhops)
 
-        self.dim_bias = np.array([1+i*4//self.n_dims for i in range(self.n_dims)])
+        self.dim_bias = np.array([1+i*4//self.n_dim for i in range(self.n_dim)])
 
         self.alpha_hops = np.apply_along_axis(get_alpha_hops, axis=1, arr=self.hops, alpha=self.alpha)
         
         self.random_points_generator = random_points_generator
-        self.Z = torch.tensor(self.random_points_generator(self.n_nodes, self.n_dims), )
+        self.Z = torch.tensor(self.random_points_generator(self.n_nodes, self.n_dim), )
         
         self.fmodel_attr = ForceClass(name='attractive_force_ahops', 
                             func=lambda *args, **kwargs: attractive_force_ahops(*args, k1=1, k2=1, **kwargs)
@@ -159,7 +159,7 @@ class FDModel(Model_Base):
 
                 
                 # create the biased dimension matrix
-                dim_bias = torch.tensor([2+i*10//self.n_dims for i in range(self.n_dims)])
+                dim_bias = torch.tensor([2+i*10//self.n_dim for i in range(self.n_dim)])
                 dim_bias[dim_bias>=4] = 4 # 10% is 2, 10% is 3 and the rest is 4
                 
                 mat_dim_bias = self.dim_bias.reshape(1, 1, -1).repeat(D.shape[0], D.shape[1], 1)

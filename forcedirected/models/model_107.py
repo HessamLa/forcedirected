@@ -32,14 +32,14 @@ class FDModel(Model_Base):
     def __str__(self):
         return f"FDModel v{FDModel.VERSION},{FDModel.DESCRIPTION}"
     
-    def __init__(self, Gx, n_dims, alpha:float,
+    def __init__(self, Gx, n_dim, alpha:float,
                 random_points_generator:callable = generate_random_points, 
                 **kwargs):
         
         super().__init__(**kwargs)
         self.Gx = Gx
         self.n_nodes = Gx.number_of_nodes()
-        self.n_dims = n_dims
+        self.n_dim = n_dim
         self.alpha = alpha
         Gnk, A, degrees, hops = process_graph_networkx(Gx)
         self.lr = kwargs.get('lr', 1.0)
@@ -55,7 +55,7 @@ class FDModel(Model_Base):
         self.alpha_hops = np.apply_along_axis(get_alpha_hops, axis=1, arr=self.hops, alpha=self.alpha)
         
         self.random_points_generator = random_points_generator
-        self.Z = torch.tensor(self.random_points_generator(self.n_nodes, self.n_dims), )
+        self.Z = torch.tensor(self.random_points_generator(self.n_nodes, self.n_dim), )
         
         self.fmodel_attr = ForceClass(name='attractive_force_ahops', 
                             func=lambda *args, **kwargs: attractive_force_ahops(*args, k1=1, k2=1, **kwargs)

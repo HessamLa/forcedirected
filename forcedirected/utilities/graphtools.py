@@ -93,7 +93,7 @@ hops: hops distance matrix in numpy format
 
 
 """
-def process_graph_networkx(Gx):
+def process_graph_networkx(Gx, exlude_disconnected=True, get_hops=True):
     # print("\nProcess Graph")
     # print('======================')
     # ccgenerator = nx.connected_components(Gx)
@@ -143,14 +143,17 @@ def process_graph_networkx(Gx):
 
 
 def get_hops(Gx):
+    """returns the hops distance matrix of a networkx graph
+    the hops distance is in range [0, n_nodes-1]
+    """
     G = nk.nxadapter.nx2nk(Gx)
     n = G.numberOfNodes()
     asps = nk.distance.APSP(G)
     asps.run()
     # all pair hops distance
     hops = asps.getDistances(asarray=True)
-    print(f'networkit hops mean: {hops[hops<=n].mean():.3f}')
-    hops[hops>n] = np.inf
+    print(f'networkit hops mean: {hops[hops<n].mean():.3f}')
+    hops[hops>=n] = np.inf
     return hops
     
 import random

@@ -131,7 +131,7 @@ def drawgraph_2d(G, Z, nodes, degrees, figsize=None, figheight=10,
     
     return ax.figure
 
-
+# %%
 method='forcedirected_v0106_128d'
 method='forcedirected_v0107_128d'
 method='forcedirected_v0108_128d'
@@ -139,8 +139,12 @@ method='forcedirected_v0109_128d'
 method='forcedirected_v0110_128d'
 method='ge-deepwalk_128d'
 method='ge-node2vec_128d'
+method='forcedirected_v0120_128d'
 method='forcedirected_v0104_128d'
-args.embedding=f'./embeddings/{method}/{dataset}/embed-df.pkl'
+method='forcedirected_v0121_128d'
+method='forcedirected_v0201_128d'
+args.embedding=f'./embeddings-tmp/{method}/{dataset}/embed-df.pkl.tmp'
+args.embedding=f'./embeddings-tmp/{method}/{dataset}/embed-df.pkl'
 
 # Load embeddings
 Z = pd.read_pickle(args.embedding)

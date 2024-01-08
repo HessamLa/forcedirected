@@ -37,7 +37,7 @@ def repulsive_force_hops(D, N, unitD, hops, k1=1, k2=1, return_sum=True):
     k1 is amplitude factor, scalar: k1*f(x) 
     k2 is decaying factor factor, scalar: f(x/k2)
     """
-    n = D.shape[0] # total number of nodes
+    n = D.shape[1] # total number of nodes
     
     # force amplitudes is the main part the algorithm
     # calculate forces amplitude
@@ -243,6 +243,8 @@ def attractive_force_base(D, N, unitD, e_hops, k1=1, k2=1, return_sum=True):
     k2 is intensity factor factor over distance: f(x^k2)
     """
     # calculate the amplitude
+    if(k2!=1 and k2!=0):
+        e_hops = torch.pow(e_hops, 1.0/k2)
     F = k1 * e_hops * N
     
     # finally apply the direction

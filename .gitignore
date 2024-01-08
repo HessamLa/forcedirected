@@ -1,4 +1,5 @@
 # forcedirected project specific
+data
 datasets
 embeddings*
 tmplog
