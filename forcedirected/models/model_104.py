@@ -15,7 +15,9 @@ from forcedirected.Functions import DropSteadyRate, DropLinearChange, DropExpone
 from forcedirected.Functions import generate_random_points
 from forcedirected.utilityclasses import ForceClass
 from forcedirected.utilityclasses import Model_Base
-import forcedirected.utilities.RecursiveNamespace as rn
+
+from recursivenamespace import recursivenamespace as rn
+
 import torch
 
 # Function to check available GPU memory

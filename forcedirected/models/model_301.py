@@ -12,7 +12,7 @@ from forcedirected.Functions import attractive_force_ahops, repulsive_force_hops
 
 from forcedirected.Functions import DropSteadyRate, DropLinearChange, DropExponentialDimish
 from forcedirected.Functions import generate_random_points
-import forcedirected.utilities.RecursiveNamespace as rn
+from recursivenamespace import recursivenamespace as rn
 
 import torch
 

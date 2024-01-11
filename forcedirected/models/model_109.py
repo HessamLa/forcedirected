@@ -15,7 +15,7 @@ from forcedirected.Functions import DropSteadyRate, DropLinearChange, DropExpone
 from forcedirected.Functions import generate_random_points
 from forcedirected.utilityclasses import ForceClass
 from forcedirected.utilityclasses import Model_Base
-import forcedirected.utilities.RecursiveNamespace as rn
+from recursivenamespace import recursivenamespace as rn
 import torch
 
 def force_exp_x(D, N, unitD, A, k1=1, k2=1, return_sum=True):
