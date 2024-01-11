@@ -10,7 +10,7 @@ from sklearn.decomposition import PCA
 import networkx as nx
 from forcedirected.utilities.graphtools import process_graph_networkx
 
-from forcedirected.utilities import RecursiveNamespace as rn
+from recursivenamespace import rns
 
 # load graph from files into a networkx object
 def load_graph(args: dict()):
@@ -46,7 +46,7 @@ def reducedim (Z, target_dim, method='PCA', **kwargs):
 
 dataset = 'pubmed'
 dataset = 'ego-facebook'
-args = rn({'edgelist': f'./datasets/{dataset}/{dataset}_edgelist.txt',
+args = rns({'edgelist': f'./datasets/{dataset}/{dataset}_edgelist.txt',
            'labels':f'./datasets/{dataset}/{dataset}_y.txt'})
 print(args)
 Gx = load_graph(args)
@@ -180,13 +180,13 @@ plt.savefig(f'./images/plot-embeddings-{method}-{dataset}.png')
 G, A, degrees, hops = process_graph_networkx(Gx)
 print('processed graph')
 # %%
-dataset_args=rn()
+dataset_args=rns()
 dataset = 'ego-facebook'
 method='forcedirected_v0005_128d'
 method='ge-node2vec_128d'
 method_name={'forcedirected_v0005_128d':'Force-Directed', 'ge-node2vec_128d':'Node2Vec', 'ge-deepwalk_128d':'DeepWalk'}
 for method in ['forcedirected_v0005_128d', 'ge-node2vec_128d', 'ge-deepwalk_128d']:
-    dataset_args[method] = rn({
+    dataset_args[method] = rns({
             'edgelist': f'./datasets/{dataset}/{dataset}_edgelist.txt',
             'embedding':f'./embeddings/{method}/{dataset}/embed-df.pkl',
             'methodname': method_name[method],

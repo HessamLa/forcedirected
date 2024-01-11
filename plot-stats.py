@@ -11,7 +11,7 @@ import os
 from forcedirected.utilities.loaders import load_stats
 import pandas as pd
 import matplotlib.pyplot as plt
-from forcedirected.utilities.RecursiveNamespace import RecursiveNamespace as rn
+from recursivenamespace import rns
 
 
 
@@ -102,7 +102,7 @@ for method in os.listdir(base_dir):
             dataset_dir = os.path.join(method_dir, dataset)
             stats_path = os.path.join(dataset_dir, 'stats.csv')
             
-            paths.append(rn(method=method, dataset=dataset, stats_path=stats_path))
+            paths.append(rns(method=method, dataset=dataset, stats_path=stats_path))
 
 for p in paths:
     # if('cora' not in p.stats_path or 'corafull' in p.stats_path): continue
