@@ -3,12 +3,12 @@ import numpy as np
 import pandas as pd
 import os
 
-from .RecursiveNamespace import RecursiveNamespace
+from recursivenamespace import recursivenamespace
 
 # load graph from files into a networkx object
-def load_graph(paths: RecursiveNamespace = None, **kwargs):
+def load_graph(paths: recursivenamespace = None, **kwargs):
     if(paths is None):
-        paths = RecursiveNamespace(**kwargs)
+        paths = recursivenamespace(**kwargs)
 
     ##### LOAD GRAPH #####
     Gx = nx.Graph()
