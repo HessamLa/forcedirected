@@ -13,9 +13,11 @@ class ForceDirected(torch.nn.Module, Model_Base):
         """
         Model_Base.__init__(self, **kwargs) 
         torch.nn.Module.__init__(self)
-        # self.degrees = [d for n, d in Gx.degree()]
         
+        self.train = self.embed # alias
+
         self.dZ = None
+        self.latest_epoch = 0 # latest epoch processed by the model
 
     def __str__(self) -> str:
         # return name of the class along with the version
@@ -37,20 +39,22 @@ class ForceDirected(torch.nn.Module, Model_Base):
     def updateZ(self):
         self.Z += self.dZ*self.lr
         
-    def train(self, epochs=100, device='cpu', row_batch_size='auto', **kwargs):
-        self.embed(epochs=epochs, device=device, 
-                   row_batch_size=row_batch_size, **kwargs)
+    # def train(self, epochs=100, device='cpu', row_batch_size='auto', **kwargs):
+    #     self.embed(epochs=epochs, device=device, 
+    #                row_batch_size=row_batch_size, **kwargs)
 
     @torch.no_grad()
-    def embed(self, epochs=100, device='cpu', row_batch_size='auto', lr=1.0, Z=None, **kwargs):
+    def embed(self, epochs=100, device='cpu', row_batch_size='auto', lr=1.0, Z=None, start_epoch=None, **kwargs):
         # train begin
         kwargs['epochs'] = epochs
         self.notify_train_begin_callbacks(**kwargs)
 
         self.to(device)
         self.lr = lr # learning rate
+        
+        # continue on an existing embedding
         if(Z is not None): 
-            self.Z = Z # in case the model is to continue on an existing embedding
+            self.Z = Z 
             self.Z.to(device)
         
         if(self.dZ is None):
