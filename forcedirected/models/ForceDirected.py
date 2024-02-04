@@ -49,9 +49,10 @@ class ForceDirected(torch.nn.Module, Model_Base):
 
         self.to(device)
         self.lr = lr # learning rate
-        if(Z is not None): self.Z = Z # in case the model is to continue on an existing embedding
+        if(Z is not None): 
+            self.Z = Z # in case the model is to continue on an existing embedding
+            self.Z.to(device)
         
-        # self.Z = self.Z.to(device)
         if(self.dZ is None):
             self.dZ = torch.nn.Parameter(
                         # torch.zeros_like(self.Z, device=device),
