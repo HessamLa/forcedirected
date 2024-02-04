@@ -13,9 +13,10 @@ class ForceDirected(torch.nn.Module, Model_Base):
         """
         Model_Base.__init__(self, **kwargs) 
         torch.nn.Module.__init__(self)
-        
         # self.degrees = [d for n, d in Gx.degree()]
         
+        self.dZ = None
+
     def __str__(self) -> str:
         # return name of the class along with the version
         return f"{self.__class__.__name__} v{self.VERSION} - {self.DESCRIPTION}"
@@ -49,12 +50,14 @@ class ForceDirected(torch.nn.Module, Model_Base):
         self.to(device)
         self.lr = lr # learning rate
         if(Z is not None): self.Z = Z # in case the model is to continue on an existing embedding
+        
         # self.Z = self.Z.to(device)
-        self.dZ = torch.nn.Parameter(
-                    # torch.zeros_like(self.Z, device=device),
-                    torch.zeros_like(self.Z),
-                    requires_grad=False)
-
+        if(self.dZ is None):
+            self.dZ = torch.nn.Parameter(
+                        # torch.zeros_like(self.Z, device=device),
+                        torch.zeros_like(self.Z),
+                        requires_grad=False)            
+        
         from forcedirected.utilities import optimize_batch_count
         @optimize_batch_count(max_batch_count=self.Z.shape[0])
         def run_batches(batch_count=1, **kwargs):
@@ -70,15 +73,15 @@ class ForceDirected(torch.nn.Module, Model_Base):
                 ###################################
                 # this is the forward pass
                 self.dZ[bmask] = self.forward(bmask, **kwargs)
-            
+                
                 # batch ends
                 self.notify_batch_end_callbacks(**kwargs)
             
             return batch_count, batch_size
-
+        
         for epoch in range(epochs):
             if(self.stop_training): break
-
+            
             # epoch begin
             kwargs['epoch'] = epoch
             self.notify_epoch_begin_callbacks(**kwargs)

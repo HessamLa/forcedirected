@@ -3,13 +3,14 @@ import os
 import sys
 import pickle
 import pandas as pd
+from pprint import pprint
 import logging
 import torch
 from .utilityclasses import Callback_Base
 from .utilities import ReportLog
 from .utilities import optimize_batch_count
 
-from .utilities import RecursiveNamespace as rn
+from recursivenamespace import rns
 
 @torch.no_grad()
 def make_hops_stats_old(Z, hops, maxhops):
@@ -134,16 +135,16 @@ def make_hops_stats(Z, hops, maxhops, batch_count=1, *args, **kwargs):
 summary_stats = lambda x: (torch.sum(x).item(), torch.mean(x).item(), torch.std(x).item())
 
 def make_force_stats(model):
-    s=rn()
-    s.f_mag=rn(sum=0, wsum=0)
+    s=rns()
+    s.mag=rns(sum=0, wsum=0)
     f_all=torch.zeros_like(model.Z)
     for F in model.forcev.values():
         _sum, _mean, _std = summary_stats( torch.norm(F.v, dim=1) )
         _wsum, _wmean, _wstd = summary_stats( torch.norm(F.v, dim=1)*model.degrees )
 
-        s[F.tag]=rn(sum=_sum, mean=_mean, std=_std, wsum=_wsum, wmean=_wmean, wstd=_wstd)
-        s.f_mag.sum += _sum
-        s.f_mag.wsum += _wsum
+        s[F.tag]=rns(sum=_sum, mean=_mean, std=_std, wsum=_wsum, wmean=_wmean, wstd=_wstd)
+        s.mag.sum += _sum
+        s.mag.wsum += _wsum
 
         # s[f'{F.tag}-sum'], s[f'{F.tag}-mean'], s[f'{F.tag}-std'] = summary_stats( torch.norm(F.V, dim=1) )
         # s[f'{F.tag}-w-sum'], s[f'{F.tag}-w-mean'], s[f'{F.tag}-w-std'] = summary_stats( torch.norm(F.v, dim=1) )*model.degrees
@@ -169,17 +170,19 @@ def make_relocation_stats(model):
     _sum, _mean, _std = summary_stats( torch.norm(model.dZ, dim=1) )
     _wsum, _wmean, _wstd = summary_stats( torch.norm(model.dZ, dim=1)*model.degrees )
     
-    s = rn(dz_sum=_sum, dz_mean=_mean, dz_std=_std, dz_wsum=_wsum, dz_wmean=_wmean, dz_wstd=_wstd)
+    s = rns(sum=_sum, mean=_mean, std=_std, wsum=_wsum, wmean=_wmean, wstd=_wstd)
     return s
 
 def make_stats_log(model, epoch):
     logstr = ''
-    s = rn({'epoch': epoch})
+    s = rns(epoch=epoch)
     s.update(make_hops_stats(model.Z, model.hops, model.maxhops))
     force_stats=make_force_stats(model)
     relocs=make_relocation_stats(model)
-    s.update(force_stats)
-    s.update(relocs)
+    s.f = force_stats
+    s.dz = relocs
+    # s.update(force_stats)
+    # s.update(relocs)
     # summary_stats = lambda x: (torch.sum(x).item(), torch.mean(x).item(), torch.std(x).item())
 
     # # attractive forces
@@ -230,8 +233,8 @@ def make_stats_log(model, epoch):
         k,v=F.tag, force_stats[F.tag]
         logstr += f"w{k}:{v.wsum:.3f}({v.wmean:.3f})  "
     
-    logstr+= f"relocs:{relocs.dz_sum:.3f}({relocs.dz_mean:.3f})  "
-    logstr+= f"wrelocs:{relocs.dz_wsum:.3f}({relocs.dz_wmean:.3f})  "
+    logstr+= f"relocs:{relocs.sum:.3f}({relocs.mean:.3f})  "
+    logstr+= f"wrelocs:{relocs.wsum:.3f}({relocs.wmean:.3f})  "
     
     # logstr = f"attr:{s['fa-sum']:<9.3f}({s['fa-mean']:.3f})  "
     # logstr+= f"repl:{s['fr-sum']:<9.3f}({s['fr-mean']:.3f})  "
@@ -245,17 +248,100 @@ def make_stats_log(model, epoch):
     # pprint(s)
     return s, logstr
 
+class StatsLog (Callback_Base):
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
+        stats_args=kwargs['args']
+        if(not hasattr(stats_args, 'outputdir')): raise Exception("StatsLog.__init__ 'outputdir' not found in args")
+        if(not hasattr(stats_args, 'statsfilename')): raise Exception("StatsLog.__init__ 'statsfilename' not found in args")
+        if(not hasattr(stats_args, 'save_stats_every')): raise Exception("StatsLog.__init__ 'save_stats_every' not found in args")
+        if(not hasattr(stats_args, 'logfilepath')): raise Exception("StatsLog.__init__ 'logfilepath' not found in args")
+
+        self.stats_filepath = f"{stats_args.outputdir}/{stats_args.statsfilename}" # the path to save the latest stats
+        self.save_stats_every = stats_args.save_stats_every
+        assert self.save_stats_every>0, "StatsLog.__init__ save_stats_every must be > 0"
+        self.newstats = {} # the lastest stats
+        self.statsdf = pd.DataFrame()
+        # self.logger = ReportLog(stats_args.logfilepath)
+        
+        # make he stat logger #######################
+        self.statlog = logging.getLogger('StatsLog')
+        self.statlog.propagate - False # don't propagate to the root logger
+        if(self.statlog.hasHandlers()): self.statlog.handlers.clear() # remove all handlers before adding new ones
+        
+        self.statlog.setLevel(logging.INFO)
+        
+        # Add a file handler to write logs to a file
+        file_handler = logging.FileHandler(stats_args.logfilepath, mode='w')
+        file_handler.setLevel(logging.INFO)
+        file_handler.setFormatter(logging.Formatter('%(asctime)s-%(levelname)s: %(message)s'))
+        self.statlog.addHandler(file_handler)
+
+        # Add a console handler to print logs to the console
+        console_handler = logging.StreamHandler(sys.stdout)
+        console_handler.setLevel(logging.DEBUG)
+        # console_handler.setFormatter(logging.Formatter('> %(message)s'))
+        self.statlog.addHandler(console_handler)
+        ############################################
+    
+    def update_stats(self, fd_model, epoch, **kwargs):
+        # make stats and logs
+        self.newstats, statstr = make_stats_log(fd_model, epoch)
+
+        # make the stats as dataframe
+        if(len(self.statsdf) == 0):  # new dataframe
+            self.statsdf = pd.DataFrame(columns=list(self.newstats.keys()))    
+        
+        newstats_df = pd.DataFrame(self.newstats, index=[0])
+        self.statsdf = pd.concat([self.statsdf, newstats_df], ignore_index=True)
+
+        # Save DataFrame to a CSV file
+        # temp_filename = self.stats_filepath+'_tmp'
+        self.statsdf.to_csv(self.stats_filepath, index=False)
+        
+        pklpath = self.stats_filepath
+        if(pklpath.endswith('.csv')): pklpath = pklpath[:-4]
+        pklpath = pklpath+'.pkl'
+        self.statsdf.to_pickle(pklpath)
+        # Rename the temporary file to the final filename
+        # os.rename(temp_filename, self.stats_filepath)
+        logstr = f"Epoch {epoch+1}/{kwargs['epochs']}  ({kwargs['batch_count']} batches) | {statstr}"
+        self.statlog.info(logstr)
+        
+    def on_epoch_begin(self, fd_model, epoch, epochs, **kwargs):
+        self.statlog.debug(f'Epoch {epoch+1}/{epochs}')
+        # return super().on_batch_begin(fd_model, epoch, **kwargs)
+
+    def on_epoch_end(self, fd_model, epoch, **kwargs):
+        self.statlog.debug(f"   Batch size: {kwargs['batch_size']}")
+        if(self.save_stats_every > 0):
+            if(epoch % self.save_stats_every == 0):
+                self.update_stats(fd_model, epoch, **kwargs)
+
+            
+    def on_batch_end(self, fd_model, batch, **kwargs):
+        self.statlog.debug(f"   Batch {batch}/{kwargs['batch_count']}")
+        # return super().on_batch_begin(fd_model, batch, **kwargs)
+
+    def on_train_end(self, fd_model, epochs, **kwargs):
+        print("on_train_end() ---+-----+--- train ended here")
+        kwargs['epochs']=epochs
+        self.statlog.debug("Final save")
+        self.update_stats(fd_model, **kwargs)
+
+
+        
 class SaveEmbedding (Callback_Base):
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
-        # self.emb_filepath_tmp = f"{self.args.outputdir}/{self.args.outputfilename}.tmp" # the path to store the latest embedding
-        self.args=kwargs['args']
+        # self.emb_filepath_tmp = f"{save_args.outputdir}/{save_args.outputfilename}.tmp" # the path to store the latest embedding
+        save_args=kwargs['args']
         
-        self.save_history_every = self.args.save_history_every
-        self.hist_filepath = f"{self.args.outputdir}/{self.args.historyfilename}" # the path to APPEND the latest embedding
+        self.save_history_every = save_args.save_history_every
+        self.hist_filepath = f"{save_args.outputdir}/{save_args.historyfilename}" # the path to APPEND the latest embedding
         
-        self.emb_filepath = os.path.join(self.args.outputdir, self.args.outputfilename) # the path to store the final embedding
-        self.emb_filepath_tmp = os.path.join(self.args.outputdir, f"{self.args.outputfilename}.tmp") # the path to store the latest embedding
+        self.emb_filepath = os.path.join(save_args.outputdir, save_args.outputfilename) # the path to store the final embedding
+        self.emb_filepath_tmp = os.path.join(save_args.outputdir, f"{save_args.outputfilename}.tmp") # the path to store the latest embedding
         os.system(f"rm -f {self.emb_filepath_tmp} {self.emb_filepath}") # remove the old embedding files
 
     def save_history(self, fd_model, **kwargs):
@@ -284,78 +370,3 @@ class SaveEmbedding (Callback_Base):
         # I don't trust os.rename. So I use system command instead
         os.system(f"mv {self.emb_filepath_tmp} {self.emb_filepath}")
 
-class StatsLog (Callback_Base):
-    def __init__(self, **kwargs) -> None:
-        super().__init__(**kwargs)
-        self.args=kwargs['args']
-
-        self.stats_filepath = f"{self.args.outputdir}/{self.args.statsfilename}" # the path to save the latest stats
-        self.save_stats_every = self.args.save_stats_every
-        self.statsdf = pd.DataFrame()
-        # self.logger = ReportLog(self.args.logfilepath)
-        
-        # make he stat logger #######################
-        self.statlog = logging.getLogger('StatsLog')
-        self.statlog.setLevel(logging.INFO)
-
-        # Add a file handler to write logs to a file
-        file_handler = logging.FileHandler(self.args.logfilepath, mode='w')
-        file_handler.setLevel(logging.INFO)
-        file_handler.setFormatter(logging.Formatter('%(asctime)s-%(levelname)s: %(message)s'))
-        self.statlog.addHandler(file_handler)
-
-        # Add a console handler to print logs to the console
-        console_handler = logging.StreamHandler(sys.stdout)
-        console_handler.setLevel(logging.DEBUG)
-        # console_handler.setFormatter(logging.Formatter('> %(message)s'))
-        self.statlog.addHandler(console_handler)
-        ############################################
-    
-    def update_stats(self, fd_model, epoch, **kwargs):
-        # make stats and logs
-        stats, statstr = make_stats_log(fd_model, epoch)
-
-        # make the stats as dataframe
-        if(len(self.statsdf) == 0):  # new dataframe
-            self.statsdf = pd.DataFrame(columns=list(stats.keys()))    
-        
-        stats = pd.DataFrame(stats, index=[0])
-
-        self.statsdf = pd.concat([self.statsdf, stats], ignore_index=True)
-
-        # Save DataFrame to a CSV file
-        # temp_filename = self.stats_filepath+'_tmp'
-        self.statsdf.to_csv(self.stats_filepath, index=False)
-        
-        pklpath = self.stats_filepath
-        if(pklpath.endswith('.csv')): pklpath = pklpath[:-4]
-        pklpath = pklpath+'.pkl'
-        self.statsdf.to_pickle(pklpath)
-        # Rename the temporary file to the final filename
-        # os.rename(temp_filename, self.stats_filepath)
-        logstr = f"Epoch {epoch+1}/{kwargs['epochs']}  ({kwargs['batch_count']} batches) | {statstr}"
-        self.statlog.info(logstr) # FIX THIS
-
-    def on_epoch_begin(self, fd_model, epoch, epochs, **kwargs):
-        self.statlog.debug(f'Epoch {epoch+1}/{epochs}')
-        # return super().on_batch_begin(fd_model, epoch, **kwargs)
-
-    def on_epoch_end(self, fd_model, epoch, **kwargs):
-        self.statlog.debug(f"   Batch size: {kwargs['batch_size']}")
-        if(self.save_stats_every > 0):
-            if(epoch % self.save_stats_every == 0):
-                self.update_stats(fd_model, epoch, **kwargs)
-
-            
-    def on_batch_end(self, fd_model, batch, **kwargs):
-        self.statlog.debug(f"   Batch {batch}/{kwargs['batch_count']}")
-        # return super().on_batch_begin(fd_model, batch, **kwargs)
-
-    def on_train_end(self, fd_model, epochs, **kwargs):
-        print("on_train_end() ---+-----+--- train ended here")
-        kwargs['epochs']=epochs
-        self.statlog.debug("Final save")
-        self.update_stats(fd_model, **kwargs)
-
-
-        

@@ -30,7 +30,7 @@ def parse_args():
 args=parse_args()
 
 # generate the paths
-DATA_ROOT = os.path.expanduser('~/gnn/data/graphs')
+DATA_ROOT = os.path.expanduser('./data/graphs')
 # Create a dictionary to hold the data paths
 DATA_PATHS = {}
 for dataset_XX in ['cora', 'pubmed', 'citeseer', 'tinygraph', 'ego-facebook', 'corafull', 'wiki', 'blogcatalog']:

@@ -128,16 +128,16 @@ def process_arguments(
     # elif(args.fdversion=='201'):          from .models.model_201 import FDModel
     # elif(args.fdversion=='301'):          from .models.model_301 import FDModel
     # load module from .models.model_xxx import FDModel such that xxx is from args.fdversion
-    # args.FDModel = FDModel
+    # args.fdmbed = FDModel
 
     # Try importing from the first pattern
     print(f"Trying to import 'FDModel' from .models.model_{args.fdversion}")
-    args.FDModel = try_import_module(f'.models.model_{args.fdversion}', 'FDModel')
-    if(args.FDModel is None):
+    args.fdmbed = try_import_module(f'.models.model_{args.fdversion}', 'FDModel')
+    if(args.fdmbed is None):
         raise ValueError(f"Failed to import 'FDModel' version {args.fdversion} from .models.model_{args.fdversion}")
 
     if(args.outputdir is None):
-        args.outputdir = f"{args.outputdir_root}/{EMBEDDING_METHOD}_v{args.FDModel.VERSION}_{args.ndim}d/{args.dataset_name}"
+        args.outputdir = f"{args.outputdir_root}/{EMBEDDING_METHOD}_v{args.fdmbed.VERSION}_{args.ndim}d/{args.dataset_name}"
     if(args.logfilepath is None):
         args.logfilepath = f"{args.outputdir}/{EMBEDDING_METHOD}-{args.dataset_name}.log"
 
@@ -228,8 +228,13 @@ def main():
                  SaveEmbedding(args=args),
                  ]
     # callbacks = [StatsLog(args=args)]
-    model = args.FDModel(Gx, n_dim=args.ndim, alpha=args.alpha, lr=args.lr, callbacks=callbacks)
+    model = args.fdmbed(Gx, n_dim=args.ndim, alpha=args.alpha, lr=args.lr, callbacks=callbacks)
     model.train(epochs=args.epochs, device=device)
+    # for epoch in range(args.epochs):
+    #     model.train(epochs=1, device=device)
+    #     if(model.stop_training):
+    #         break
+    
     with open(args.outputdir+'/done.txt', 'w') as f:
         f.write('done')
     print(f'Embedding completed, dataset={args.dataset_name}, version={args.fdversion}, ndim={args.ndim}')

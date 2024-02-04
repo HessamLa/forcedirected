@@ -6,28 +6,24 @@ import os
 from recursivenamespace import recursivenamespace
 
 # load graph from files into a networkx object
-def load_graph(paths: recursivenamespace = None, **kwargs):
-    if(paths is None):
-        paths = recursivenamespace(**kwargs)
-
+def load_graph(edgelist, nodelist='', features='', labels='', **kwargs):
     ##### LOAD GRAPH #####
     Gx = nx.Graph()
     # load nodes first to keep the order of nodes as found in nodes or labels file
-    if('nodelist' in paths and os.path.exists(paths.nodelist)):
-        Gx.add_nodes_from(np.loadtxt(paths.nodelist, dtype=str, usecols=0))
+    if(os.path.exists(nodelist)):
+        Gx.add_nodes_from(np.loadtxt(nodelist, dtype=str, usecols=0))
         print('loaded nodes from nodes file')
-    elif('features' in paths and  os.path.exists(paths.features)):
-        Gx.add_nodes_from(np.loadtxt(paths.features, dtype=str, usecols=0))
+    elif(os.path.exists(features)):
+        Gx.add_nodes_from(np.loadtxt(features, dtype=str, usecols=0))
         print('loaded nodes from features file')
-    elif('labels' in paths and os.path.exists(paths.labels)):
-        Gx.add_nodes_from(np.loadtxt(paths.labels, dtype=str, usecols=0))   
+    elif(os.path.exists(labels)):
+        Gx.add_nodes_from(np.loadtxt(labels, dtype=str, usecols=0))   
         print('loaded nodes from labels file')
     else:
         print('no nodes were loaded from files. nodes will be loaded from edgelist file.')
 
     # add edges from args.path_edgelist
-    Gx.add_edges_from(np.loadtxt(paths.edgelist, dtype=str))
-    print('loaded edges from edgelist file')
+    Gx.add_edges_from(np.loadtxt(edgelist, dtype=str))
     return Gx
 
 def load_embeddings(path_embedding=''):
