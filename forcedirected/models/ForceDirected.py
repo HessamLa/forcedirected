@@ -27,6 +27,7 @@ class ForceDirected(torch.nn.Module, Model_Base):
         return f"{self.__class__.__name__} v{self.VERSION}"
     
     def get_embeddings(self):   
+        """Returns embeddings as a numpy object"""
         return self.Z.detach().cpu().numpy()
     
     def forward(self, bmask, **kwargs): 
@@ -74,7 +75,7 @@ class ForceDirected(torch.nn.Module, Model_Base):
                 kwargs['batch'] = i+1
                 kwargs['batch_size'] = batch_size
                 self.notify_batch_begin_callbacks(**kwargs)
-                
+                print(f"  batch {kwargs['batch']}/{kwargs['batch_count']}")
                 ###################################
                 # this is the forward pass
                 self.dZ[bmask] = self.forward(bmask, **kwargs)
@@ -90,7 +91,7 @@ class ForceDirected(torch.nn.Module, Model_Base):
             # epoch begin
             kwargs['epoch'] = epoch
             self.notify_epoch_begin_callbacks(**kwargs)
-            
+            print(f"Epoch {epoch}/{epochs}")
             self.dZ.zero_() # fill self.dZ with zeros
             
             batch_count, batch_size = run_batches(**kwargs)
