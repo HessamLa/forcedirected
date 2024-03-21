@@ -6,7 +6,9 @@ class ForceDirected(torch.nn.Module, Model_Base):
     """Force Directed Base Model"""
     VER_MAJ="02"
     DESCRIPTION="Force-Directed Base Model"
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, *args, 
+                verbose=False,
+                **kwargs) -> None:
         """
         Gx is a Networkx graph object.
         n_dim is the number of dimensions to embed the graph.
@@ -15,7 +17,7 @@ class ForceDirected(torch.nn.Module, Model_Base):
         torch.nn.Module.__init__(self)
         
         self.train = self.embed # alias
-
+        self.verbose = verbose
         self.dZ = None
         self.latest_epoch = 0 # latest epoch processed by the model
 
@@ -29,6 +31,12 @@ class ForceDirected(torch.nn.Module, Model_Base):
     def get_embeddings(self):   
         """Returns embeddings as a numpy object"""
         return self.Z.detach().cpu().numpy()
+    
+    # def get_embeddings_df(self):
+    #     """Returns embeddings as a pandas dataframe, with nodes as indices"""
+    #     emb = self.get_embeddings()
+    #     df = pd.DataFrame(emb, index=self.Gx.nodes())
+    #     return df
     
     def forward(self, bmask, **kwargs): 
         """forward pass, to calculate the forces and dZ
@@ -75,7 +83,8 @@ class ForceDirected(torch.nn.Module, Model_Base):
                 kwargs['batch'] = i+1
                 kwargs['batch_size'] = batch_size
                 self.notify_batch_begin_callbacks(**kwargs)
-                print(f"  batch {kwargs['batch']}/{kwargs['batch_count']}")
+                if(self.verbose and kwargs['batch_count'] > 1):
+                    print(f"  batch {kwargs['batch']}/{kwargs['batch_count']}")
                 ###################################
                 # this is the forward pass
                 self.dZ[bmask] = self.forward(bmask, **kwargs)
@@ -85,13 +94,13 @@ class ForceDirected(torch.nn.Module, Model_Base):
             
             return batch_count, batch_size
         
-        for epoch in range(epochs):
+        for epoch in range(1, epochs+1):
             if(self.stop_training): break
             
             # epoch begin
             kwargs['epoch'] = epoch
             self.notify_epoch_begin_callbacks(**kwargs)
-            print(f"Epoch {epoch}/{epochs}")
+            if(self.verbose): print(f"Epoch {epoch}/{epochs}")
             self.dZ.zero_() # fill self.dZ with zeros
             
             batch_count, batch_size = run_batches(**kwargs)
