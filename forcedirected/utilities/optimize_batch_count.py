@@ -84,8 +84,6 @@ class optimize_batch_count:
 
                     if(self.min_batch_count > self.max_batch_count):
                         raise Exception(f"Max valid batch count is {self.max_batch_count}. No valid batch count was found.")
-                        
-
         return wrapper
 
 if __name__=='__main__':

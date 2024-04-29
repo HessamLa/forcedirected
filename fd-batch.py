@@ -79,7 +79,7 @@ os.makedirs(LOGDIR, exist_ok=True)
 def generate_sbatch_script(partition, duration, jobname, bash_cmd="{bash_cmd}", mem="200G", outpath=f"{LOGDIR}/fd-%j-%x.txt", errpath=f"{LOGDIR}/fd-%j-%x.err"):
     sbatch_flags = "-A r00372 "
     sbatch_flags += f" -p {partition} --time={duration} -J {jobname}"
-    sbatch_flags += f" --mem={mem} --nodes=1 --ntasks-per-node=1"
+    sbatch_flags += f" --mem={mem} --cpus-per-task=16 --ntasks-per-node=1"
     sbatch_flags += f" -o {outpath} -e {errpath}"
     sbatch_flags += " --gpus-per-node=1" if partition in ['gpu', 'gpu-debug'] else ""
     sbatch_cmd = f"sbatch {sbatch_flags} --wrap \"{bash_cmd}\""
@@ -96,7 +96,7 @@ def run_cmd (cmd):
 def run_sbatch_script(cmd):
     # program_cmd = f"{program_run_cmd}"
     sbatch_flags = f"-p {partition} --time={duration} -J {ndim}-{dataset_name}"
-    sbatch_flags += f" -A r00372 --mem=200G --nodes=1 --ntasks-per-node=1"
+    sbatch_flags += f" -A r00372 --mem=200G --cpus-per-task=16 --ntasks-per-node=1"
     sbatch_flags += " --gpus-per-node=1" if partition in ['gpu', 'gpu-debug'] else ""
     sbatch_flags += f" -o {LOGDIR}/fd-%j-%x.txt -e {LOGDIR}/fd-%j-%x.err"
     sbatch_cmd = f"sbatch {sbatch_flags} --wrap \"{module_cmd}; {cmd}\""

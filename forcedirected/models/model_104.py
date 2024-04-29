@@ -119,14 +119,15 @@ class FDModel(Model_Base):
         @optimize_batch_count(max_batch_count=self.n_nodes)
         def run_batches(batch_count=1, **kwargs):
             kwargs['batch_count'] = batch_count
-            print(f"run_batches: batch count: {kwargs['batch_count']}")
+            # print(f"run_batches: batch count: {kwargs['batch_count']}")
             batch_size=int(self.Z.shape[0]//batch_count +0.5)
             for i, bmask in enumerate (batchify(list(range(self.Z.shape[0])), batch_size=batch_size)):
                 # batch begin
                 kwargs['batch'] = i+1
                 kwargs['batch_size'] = batch_size
                 self.notify_batch_begin_callbacks(**kwargs)
-                
+                if(batch_count>1):
+                    print(f"  batch {i+1}/{batch_count}")
                 ###################################
                 # this is the forward pass
                 D, N, unitD = do_pairwise(self.Z[bmask], self.Z)
@@ -148,6 +149,7 @@ class FDModel(Model_Base):
             # epoch begin
             kwargs['epoch'] = epoch
             self.notify_epoch_begin_callbacks(**kwargs)
+            print(f"epoch {epoch+1}/{epochs}")
 
             batch_count = run_batches(**kwargs)
 

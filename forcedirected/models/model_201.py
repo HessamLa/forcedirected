@@ -20,41 +20,13 @@ from forcedirected.utilityclasses import ForceClass_base
 
 from forcedirected.models.ForceDirected import ForceDirected
 
-def force_function(ForceClass_base):
-    def __init__(self, name, func, shape=None, dimension_coef=None, **kwargs) -> None:
-        self.name = name
-        pass
-
-    def forward(D, H, params, **kwargs):
-        n = D.shape[1] # total number of nodes that exert node (to be included in the calculation)
-        N = torch.norm(D, dim=-1)     # pairwise distance between points
-        
-        k1,k2,k3,k4 = params.k1, params.k2, params.k3, params.k4
-
-        # attractive component
-        Fa = torch.where(H>0, k1*N*torch.exp(-(H-1)/k2), torch.zeros_like(H))/n
-        # repulsive component
-        Fr = torch.where(H>0, -k3*(H-1)*torch.exp(-N/k4), torch.zeros_like(H))/n
-        
-        F = Fa + Fr
-
-        # for report
-        NFa, NFr, NF = (torch.norm(t, dim=-1) for t in [Fa, Fr, F])
-        batch_count, batch_no = kwargs.get('batch_count', 0), kwargs.get('batch_no', 0)
-        print(f"batch {batch_no}/{batch_count} |  Fa: {NFa.sum():.3f}, Fr: {NFr.sum():.3f}, F: {NF.sum():.3f}({NF.mean():.3f})")
-        
-        # obtain the gradient
-        dZ = torch.where(N == 0, torch.zeros_like(F), F/N).unsqueeze(-1)*D # multiply by unit vector D/N
-        dZ = dZ.sum(axis=1)
-        return dZ
-
 class FDModel(ForceDirected):
     """Force Directed Model"""
     VERSION="0201"
     DESCRIPTION=f"A new iteration. Derives from the class ForceDirected"
     def __init__(self, Gx, n_dim,
                 random_points_generator:callable = generate_random_points, 
-                lr=1.0,
+                lr=1.0, random_drop_rate=0.5,
                 **kwargs):
         super().__init__(Gx, n_dim, **kwargs)
         self.n_dim = n_dim
@@ -78,7 +50,7 @@ class FDModel(ForceDirected):
         self.Z = torch.nn.Parameter(Z, requires_grad=False)
         
         # self.random_drop = DropLinearChange(name='linear-increase', start=0.1, end=0.9, change_rate=0.001)
-        self.random_drop = DropSteadyRate(name='steady-rate', drop_rate=0.5)
+        self.random_drop = DropSteadyRate(name='steady-rate', drop_rate=random_drop_rate)
         
         # define force vectors
         self.forcev = rn()
@@ -120,7 +92,8 @@ class FDModel(ForceDirected):
         NFa_mean = Fa.abs().mean()
 
         # Fr = -k3 * (H-1) * torch.exp(-N/k4) / n
-        Fr = torch.where(H>0, -k3*(H-1)*torch.exp(-N/k4), torch.zeros_like(H))/n
+        # Fr = torch.where(H>0, -k3*(H-1)*torch.exp(-N/k4), torch.zeros_like(H))/n
+        Fr = torch.where(H>0, -k3*(H-1)*torch.exp(-N/k4), torch.zeros_like(H))
         NFr = Fr.abs().sum()
         NFr_mean = Fr.abs().mean()
 
@@ -128,7 +101,7 @@ class FDModel(ForceDirected):
         NF = F.abs().sum()
         NF_mean = F.abs().mean()
 
-        print(f"{n}  Fa: {NFa:.3f}, Fr: {NFr:.3f}, F: {NF:.3f}({NF_mean:.8f})")
+        # print(f"{n}  Fa: {NFa:.3f}, Fr: {NFr:.3f}, F: {NF:.3f}({NF_mean:.8f})")
 
         # apply unit directions
         F = torch.where(N == 0, torch.zeros_like(F), F/N).unsqueeze(-1)*D # multiply by unit vector D/N

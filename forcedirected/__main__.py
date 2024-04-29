@@ -72,10 +72,12 @@ def process_arguments(
                         help='filename to save the final result (default: embed-df.pkl). Use pandas to open.')
     parser.add_argument('--historyfilename', type=str, default='embed-hist.pkl', 
                         help='filename to store s sequence of results from each iteration (default: embed-hist.pkl). Use pickle loader to open.')
+    parser.add_argument('--save-every', type=int, default=1, 
+                        help='save the latest embedding every n iteration. (default 1)')
     parser.add_argument('--save-history-every', type=int, default=100, 
-                        help='save history every n iteration.')
+                        help='save history every n iteration. (default 100)')
     parser.add_argument('--save-stats-every', type=int, default=10, 
-                        help='save history every n iteration.')
+                        help='save history every n iteration. (default 10)')
     parser.add_argument('--statsfilename', type=str, default='stats.csv', 
                         help='filename to save the embedding stats history (default: stats.csv)')
     parser.add_argument('--logfilepath', type=str, default=None, 
@@ -147,7 +149,6 @@ def process_arguments(
     args.emb_filepath = f"{args.outputdir}/{args.outputfilename}" # the path to store the latest embedding
     args.hist_filepath = f"{args.outputdir}/{args.historyfilename}" # the path to APPEND the latest embedding
     args.stats_filepath = f"{args.outputdir}/{args.statsfilename}" # the path to save the latest stats
-
 
     print("\nArguments:")
     for key, value in vars(args).items():

@@ -34,4 +34,5 @@ from .algorithms import get_alpha_hops
 ######################################################################
 from .models import *
 from .models import model_201
+from .models import model_301
 from .models import model_104

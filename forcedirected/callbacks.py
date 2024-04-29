@@ -130,6 +130,8 @@ def make_hops_stats(Z, hops, maxhops, batch_count=1, *args, **kwargs):
     else:
         s.update({f"hopsinf_std": 0.0})
 
+    # delete all other variables
+    del hops, hops_triu
     return s
     
 summary_stats = lambda x: (torch.sum(x).item(), torch.mean(x).item(), torch.std(x).item())
@@ -290,10 +292,12 @@ class StatsLog (Callback_Base):
 
         # make the stats as dataframe
         if(len(self.statsdf) == 0):  # new dataframe
-            self.statsdf = pd.DataFrame(columns=list(self.newstats.keys()))    
-        
-        newstats_df = pd.DataFrame(self.newstats, index=[0])
-        self.statsdf = pd.concat([self.statsdf, newstats_df], ignore_index=True)
+            self.statsdf = pd.DataFrame(self.newstats, index=[0])
+        else:
+            newstats_df = pd.DataFrame(self.newstats, index=[0])
+            self.statsdf = pd.concat([self.statsdf, newstats_df], ignore_index=True)
+        #     self.statsdf = pd.DataFrame(columns=list(self.newstats.keys()))    
+        # else:
 
         # Save DataFrame to a CSV file
         # temp_filename = self.stats_filepath+'_tmp'
@@ -337,6 +341,7 @@ class SaveEmbedding (Callback_Base):
         # self.emb_filepath_tmp = f"{save_args.outputdir}/{save_args.outputfilename}.tmp" # the path to store the latest embedding
         save_args=kwargs['args']
         
+        self.save_every = save_args.save_every
         self.save_history_every = save_args.save_history_every
         self.hist_filepath = f"{save_args.outputdir}/{save_args.historyfilename}" # the path to APPEND the latest embedding
         
@@ -357,7 +362,9 @@ class SaveEmbedding (Callback_Base):
         df.to_pickle(self.emb_filepath_tmp)
     
     def on_epoch_end(self, fd_model, epoch, **kwargs):
-        self.save_embeddings(fd_model, **kwargs)
+        if(self.save_every > 0):
+            if(epoch % self.save_every == 0):
+                self.save_embeddings(fd_model, **kwargs)
         if(self.save_history_every > 0):
             if(epoch % self.save_history_every == 0):
                 self.save_history(fd_model, **kwargs)
