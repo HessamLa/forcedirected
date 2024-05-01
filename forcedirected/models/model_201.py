@@ -24,12 +24,12 @@ class FDModel(ForceDirected):
     """Force Directed Model"""
     VERSION="0201"
     DESCRIPTION=f"A new iteration. Derives from the class ForceDirected"
-    def __init__(self, Gx, n_dim,
+    def __init__(self, Gx, ndim,
                 random_points_generator:callable = generate_random_points, 
                 lr=1.0, random_drop_rate=0.5,
                 **kwargs):
-        super().__init__(Gx, n_dim, **kwargs)
-        self.n_dim = n_dim
+        super().__init__(Gx, ndim, **kwargs)
+        self.ndim = ndim
         self.Gx = Gx
         self.n_nodes = Gx.number_of_nodes()
         self.register_buffer('degrees', torch.tensor([d for n, d in Gx.degree()]))
@@ -45,7 +45,7 @@ class FDModel(ForceDirected):
         print("max hops:", self.maxhops)
         
         self.random_points_generator = random_points_generator
-        Z = torch.tensor(self.random_points_generator(self.n_nodes, self.n_dim), )
+        Z = torch.tensor(self.random_points_generator(self.n_nodes, self.ndim), )
         # set Z as a torch Parameter
         self.Z = torch.nn.Parameter(Z, requires_grad=False)
         
