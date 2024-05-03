@@ -3,11 +3,13 @@ import torch
 from forcedirected.utilities import batchify
 
 class ForceDirected(torch.nn.Module, Model_Base):
-    """Force Directed Base Model"""
+    """Force-Directed Base Model"""
     VER_MAJ="02"
     DESCRIPTION="Force-Directed Base Model"
     def __init__(self, *args, 
+                lr = 1.0,
                 verbose=False,
+                
                 **kwargs) -> None:
         """
         Gx is a Networkx graph object.
@@ -15,10 +17,11 @@ class ForceDirected(torch.nn.Module, Model_Base):
         """
         Model_Base.__init__(self, **kwargs) 
         torch.nn.Module.__init__(self)
-        
         self.train = self.embed # alias
+
         self.verbose = verbose
         self.dZ = None
+        self.lr = lr # should be defined in the derived class
         self.latest_epoch = 0 # latest epoch processed by the model
 
     def __str__(self) -> str:
@@ -41,25 +44,28 @@ class ForceDirected(torch.nn.Module, Model_Base):
     def forward(self, bmask, **kwargs): 
         """forward pass, to calculate the forces and dZ
         example: 
-        self.dZ[bmask] = sum([F(self, bmask, **kwargs) for F in self.Forces])
+        class FDModel(ForceDirected):
+            ...
+        F = FDModel()
+        for epoch in range(1, epochs+1):
+            ...
+            F.dZ[bmask] = F(bmask, **kwargs)
+            F.updateZ()
+            ...
         """
         raise NotImplementedError("forward(.) is not implemented")
     
-    def updateZ(self):
-        self.Z += self.dZ*self.lr
-        
-    # def train(self, epochs=100, device='cpu', row_batch_size='auto', **kwargs):
-    #     self.embed(epochs=epochs, device=device, 
-    #                row_batch_size=row_batch_size, **kwargs)
+    def updateZ(self, lr=None):
+        if(lr is None): lr = self.lr
+        self.Z += self.dZ*lr
 
     @torch.no_grad()
-    def embed(self, epochs=100, device='cpu', row_batch_size='auto', lr=1.0, Z=None, start_epoch=None, **kwargs):
+    def embed(self, epochs=100, device='cpu', row_batch_size='auto', lr=None, Z=None, start_epoch=None, **kwargs):
         # train begin
         kwargs['epochs'] = epochs
         self.notify_train_begin_callbacks(**kwargs)
 
         self.to(device)
-        self.lr = lr # learning rate
         
         # continue on an existing embedding
         if(Z is not None): 
@@ -106,7 +112,7 @@ class ForceDirected(torch.nn.Module, Model_Base):
             batch_count, batch_size = run_batches(**kwargs)
             kwargs['batch_count'], kwargs['batch_size'] = batch_count, batch_size
 
-            self.updateZ()
+            self.updateZ(lr=lr)
         
             self.notify_epoch_end_callbacks(**kwargs)
             # epoch ends            
