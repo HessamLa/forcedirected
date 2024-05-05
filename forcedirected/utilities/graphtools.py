@@ -143,7 +143,7 @@ def process_graph_networkx(Gx, exlude_disconnected=True, get_hops=True):
 
 
 def get_hops(Gx):
-    """returns the hops distance matrix of a networkx graph
+    """returns the APSP matrix (hops distance) of a networkx graph
     the hops distance is in range [0, n_nodes-1]
     """
     G = nk.nxadapter.nx2nk(Gx)
