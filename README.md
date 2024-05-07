@@ -6,7 +6,7 @@ pip install -e .
 
 ### EXAMPLE
 
-To produce node embeddings of an input graph graph:
+To produce node embeddings of an input graph:
 
 ```
 $ python -m forcedirected embed fd-basic --help 
