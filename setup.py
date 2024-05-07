@@ -2,9 +2,9 @@ from setuptools import setup, find_packages
 
 setup(
     name='forcedirected',
-    version='0.1.0',  # Update the version number as needed
-    author='Your Name',
-    author_email='your.email@example.com',
+    version='0.2.2',  # Update the version number as needed
+    author='',
+    author_email='hlotfali_at_purdue_edu',
     description='Force-Directed graph embedding',
     long_description=open('README.md').read(),
     long_description_content_type='text/markdown',

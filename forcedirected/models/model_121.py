@@ -78,8 +78,9 @@ class FDModel(Model_Base):
     def __init__(self, Gx, n_dim, alpha:float,
                 random_points_generator:callable = generate_random_points, 
                 **kwargs):
-        
         super().__init__(**kwargs)
+        self.train = self.embed # alias
+        
         self.Gx = Gx
         self.n_nodes = Gx.number_of_nodes()
         self.n_dim = n_dim
@@ -139,9 +140,10 @@ class FDModel(Model_Base):
     
     def get_embeddings(self):   
         return self.Z.detach().cpu().numpy()
-
+        
+    
     @torch.no_grad()
-    def train(self, epochs=100, device='cpu', row_batch_size='auto', **kwargs):
+    def embed(self, epochs=100, device='cpu', row_batch_size='auto', **kwargs):
         # train begin
         kwargs['epochs'] = epochs
         self.notify_train_begin_callbacks(**kwargs)
