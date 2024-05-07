@@ -40,7 +40,7 @@ def common_options(func):
 
 def save_embeddings(embeddings_df, filepath, format):
     if(format=='csv'):
-        embeddings_df.to_csv(filepath)
+        embeddings_df.to_csv(filepath, index=False)
     elif(format=='pkl'):
         embeddings_df.to_pickle(filepath)
     print(f"Embeddings saved to {filepath}")
