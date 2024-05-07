@@ -18,16 +18,9 @@ def common_options(func):
     @click.option('-n', '--name', type=str, help='Name of the graph.', required=True)
     @click.option('-e', '--edgelist', type=click.Path(), help='Path to the edge list file. Either this or adjlist must be provided. (Somewhat required)')
     @click.option('--adjlist', type=click.Path(), help='Path to the adjacency list. Either this or edgelist must be provided.')
-    # @click.option('--nodelist', type=click.Path(), default='', help='Path to the node list, to maintain the order of nodes.', show_default=True)
     @click.option('--outdir', type=click.Path(), default='./data', help='Output directory for the embeddings.', show_default=True)
     @click.option('--format', type=click.Choice(['csv', 'pkl']), default='csv', help='Output file type. csv of Pandas pickle.', show_default=True)
     @click.option('--filename', type=click.Path(), help='Output filename for the embeddings. [default: <method>-n<node-count>.<format>]', show_default=False)
-
-    # @click.option('-v', '--verbosity', count=True, default=2,
-    # # @click.option('--verbosity', type=click.Choice([str(i) for i in range(7)]), default='2',  # convert to int
-    #                 help='Verbosity level as defined in ForceDirected base model. '
-    #                     'None: no output, v: essential msg,  vv: short msg, vvv: full msg + exception msg, vvvv: full msg + exception msg + raise exception.',
-    #                 show_default=True)
 
     @click.option('--verbosity', type=click.INT, default=2, show_default=True,
                 help='Verbosity level as defined in ForceDirected base model. '
