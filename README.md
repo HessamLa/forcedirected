@@ -1,11 +1,30 @@
 ### EXAMPLE
-python3 -m forcedirected --fdversion 121  --outputdir_root ./embeddings-tmp-240106-1502 --dataset_name corafull --ndim 128 --edgelist /N/u/hessamla/BigRed200/gnn/datasets/corafull/corafull_edgelist.txt --nodelist /N/u/hessamla/BigRed200/gnn/datasets/corafull/corafull_nodes.txt --epochs 5000 --save-stats-every 1
 
-    --fdversion: Version of the model as found in ./models/model_<version>.py
-    --dataset_name: Name of the dataset, used for naming output files
-    --edgelist: Path to the edgelist file
-    --nodelist: (optional) Path to the nodelist file. This files can be used to maintain the order of nodes as read by NetworkX.
-    --outputdir_root: 
-    --ndim: Number of dimensions
-    --epochs: Number of iterations.
-    --save-stats-every: The period for saving stats.
+To Embedd a given graph:
+
+```
+$ python -m forcedirected embed fd-basic --help 
+$ python -m forcedirected embed fd-shell --help
+$ python -m forcedirected embed fd-targets --help
+```
+
+Such as:
+
+```
+python -m forcedirected embed fd-targets --ndim 128 --edgelist ./data/graphs/cora/cora_edgelist.txt --epochs 1000 --name cora --verbosity 2
+```
+
+To generate synthetic graph:
+
+```
+python -m forcedirected generate --help
+python -m forcedirected generate lfr --help 
+```
+
+Such as 
+```
+python -m forcedirected generate lfr -n 1000 # Use LFR benchmark algorhtm to generate graph with 1000 nodes
+```
+
+
+
