@@ -5,13 +5,13 @@ with open('README.md', 'r', encoding='utf-8') as f:
 
 setup(
     name='forcedirected',
-    version='0.2.2',  # Update the version number as needed
+    version='0.2.2',
     author='Hamidreza Lotfalizadeh (Hessam)',
     author_email='hlotfali_at_purdue_edu',
     description='Force-Directed graph embedding',
     long_description=long_description,
     long_description_content_type='text/markdown',
-    url='https://github.com/HessamLa/forcedirected',  # Update with your URL
+    url='https://github.com/HessamLa/forcedirected',
     packages=find_packages(),
     include_package_data=True,
     entry_points={
@@ -20,11 +20,9 @@ setup(
         ],
     },
     classifiers=[
-        # Intended audience, project maturity, license, etc.
-        # See: https://pypi.org/classifiers/
         'Development Status :: 4 - Beta',
         'Intended Audience :: Developers',
-        'License :: OSI Approved :: MIT License',  # Update with your license
+        'License :: OSI Approved :: MIT License',
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
@@ -44,7 +42,6 @@ setup(
         'setuptools>=67.6.1',
         'torch>=2.0.0',
         'torch_geometric>=2.3.0',
-        # 'recursivenamespace @ https://github.com/HessamLa/RecursiveNamespace',
         'recursivenamespace @ git+https://github.com/HessamLa/RecursiveNamespace.git#egg=recursivenamespace',
     ],
 )
