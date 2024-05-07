@@ -21,7 +21,7 @@ python -m forcedirected generate --help
 python -m forcedirected generate lfr --help 
 ```
 
-Such as 
+Such as:
 ```
 python -m forcedirected generate lfr -n 1000 # Use LFR benchmark algorhtm to generate graph with 1000 nodes
 ```
