@@ -1,7 +1,7 @@
 ### To install
 It's suggested to install new packages in a virtual environment. But this one is safe if you know what you are doing.
 ```bash
-pip install -e .
+$ pip install -e .
 ```
 
 ### EXAMPLE
