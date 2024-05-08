@@ -1,5 +1,5 @@
 import networkx as nx
-from ..utilities import load_graph
+from forcedirected.utilities import load_graph
 from sklearn.model_selection import train_test_split
 # import all classifiers
 from sklearn.ensemble import RandomForestClassifier # rf

@@ -128,6 +128,6 @@ def nc(**options):
         if(k=='confusion'):
             print(f"{str(k):<16s}:\n{v}")
         else:
-            print(f"{str(k):<16s}:\n{v}")
+            print(f"{str(k):<16s}: {v}")
     # End of eval_nc
     #########
