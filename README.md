@@ -9,15 +9,17 @@ $ pip install -e .
 To produce node embeddings of an input graph:
 
 ```bash
-$ python -m forcedirected embed fd-basic --help 
-$ python -m forcedirected embed fd-shell --help
-$ python -m forcedirected embed fd-targets --help
+$ python -m forcedirected embed fdbasic --help 
+$ python -m forcedirected embed fdshell --help
+$ python -m forcedirected embed fdtargets --help
+$ python -m forcedirected embed node2vec --help
+
 ```
 
 Such as:
 
 ```bash
-$ python -m forcedirected embed fd-targets --ndim 128 --edgelist ./data/graphs/cora/cora_edgelist.txt --epochs 1000 --name cora --verbosity 2
+$ python -m forcedirected embed fdtargets --ndim 128 --edgelist ./data/graphs/cora/cora_edgelist.txt --epochs 1000 --name cora --verbosity 2
 ```
 
 To generate synthetic graph:
