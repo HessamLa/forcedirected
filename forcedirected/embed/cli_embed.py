@@ -211,3 +211,77 @@ def node2vec(**options):
     save_embeddings(embeddings_df, filepath, options.format, set_column_names=True)
     # End of node2vec
     #########
+
+# graphsage
+@common_options
+# @click.option('--p', type=float, default=1.0, help='Return parameter.')
+# @click.option('--q', type=float, default=0.5, help='In-out parameter.')
+# @click.option('--walk-length', type=int, default=80, help='Walk length.')
+# @click.option('--num-walks', type=int, default=10, help='Number of walks.')
+# @click.option('--context-size', type=int, default=10, help='Window size.')
+# @click.option('--walks-per-node', type=int, default=10, help='Number of walks per node.')
+# @click.option('--num-negative-samples', type=int, default=1, help='Number of negative samples.')
+@click.option('--epochs', type=int, default=100, help='Number of epochs.', show_default=True) # override the common options
+def graphsage(**options):
+    """Generate embeddings using the GraphSAGE algorithm."""
+    options = rns(options)
+
+    if(options.filename is None):
+        options.filename = f"{options.name}-graphsage-d{options.n_dim}.{options.format}"
+    filepath = os.path.join(options.outdir, options.filename)
+
+    print("graphsage command with params:")
+    for k,v in options.items():
+        print(f"{str(k):<16s}: {v}")
+
+    if(len(options.edgelist) != 0):
+        print("Input graph path     :", options.edgelist)
+    elif(len(options.adjlist) != 0):
+        print("Input graph path     :", options.adjlist)    
+    print("Embedding dimensions :", options.n_dim)
+    print("Output directory     :", options.outdir)
+    print("Output filename      :", options.filename)
+
+    from .graphsage import embed_graphsage
+    embeddings_df = embed_graphsage(**options)
+
+    save_embeddings(embeddings_df, filepath, options.format, set_column_names=True)
+    # End of node2vec
+    #########
+
+# graphsage
+@common_options
+# @click.option('--p', type=float, default=1.0, help='Return parameter.')
+# @click.option('--q', type=float, default=0.5, help='In-out parameter.')
+# @click.option('--walk-length', type=int, default=80, help='Walk length.')
+# @click.option('--num-walks', type=int, default=10, help='Number of walks.')
+# @click.option('--context-size', type=int, default=10, help='Window size.')
+# @click.option('--walks-per-node', type=int, default=10, help='Number of walks per node.')
+# @click.option('--num-negative-samples', type=int, default=1, help='Number of negative samples.')
+@click.option('--epochs', type=int, default=100, help='Number of epochs.', show_default=True) # override the common options
+def line(**options):
+    """Generate embeddings using the LINE algorithm."""
+    options = rns(options)
+
+    if(options.filename is None):
+        options.filename = f"{options.name}-line-d{options.n_dim}.{options.format}"
+    filepath = os.path.join(options.outdir, options.filename)
+
+    print("line command with params:")
+    for k,v in options.items():
+        print(f"{str(k):<16s}: {v}")
+
+    if(len(options.edgelist) != 0):
+        print("Input graph path     :", options.edgelist)
+    elif(len(options.adjlist) != 0):
+        print("Input graph path     :", options.adjlist)    
+    print("Embedding dimensions :", options.n_dim)
+    print("Output directory     :", options.outdir)
+    print("Output filename      :", options.filename)
+
+    from .line import embed_line
+    embeddings_df = embed_line(**options)
+
+    save_embeddings(embeddings_df, filepath, options.format, set_column_names=True)
+    # End of node2vec
+    #########

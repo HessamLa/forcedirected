@@ -23,14 +23,12 @@ def embed_node2vec(n_dim:int, p=1.0, q=0.5, walk_length=20, context_size=10, wal
     embeddings_df = embed(n_dim=128, file_path='path_to_your_graph_file.graphml')
     print(embeddings_df.head())
     """
-
-
     if device == 'auto':
         device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-
     # load the grpah into a Networkx object
     Gx = load_graph(**kwargs)
+
     # Convert NetworkX graph to PyTorch Geometric data object
     data = from_networkx(Gx)
 
