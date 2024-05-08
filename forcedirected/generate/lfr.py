@@ -1,11 +1,6 @@
 import networkx as nx
 from networkx.generators.community import LFR_benchmark_graph
 
-try:
-    from .utilities import write_graph
-except ImportError:
-    from utilities import write_graph
-
 __all__ = [
     "generate",
 ]
