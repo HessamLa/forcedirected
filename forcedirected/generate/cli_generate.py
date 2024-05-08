@@ -2,11 +2,7 @@ import click
 import os, sys
 import functools
 import networkx as nx
-
-try:
-    from .utilities import write_graph
-except ImportError:
-    from utilities import write_graph
+from recursivenamespace import rns
 
 @click.group()
 def cli_generate():
@@ -22,12 +18,28 @@ def common_options(func):
     """Decorator to apply common options to graph generation commands."""
     @cli_generate.command(context_settings=dict(show_default=True))
     @click.option('-n', '--n-nodes', type=int, required=True, help='Number of nodes in the graph.')
+    @click.option('--filename', type=click.STRING, help='Output filename as a string. [default: <method>-n<n_nodes>-m<mu>.<format>]')
+    @click.option('--outdir', type=click.STRING, default='./data', help='Output directory for the graph file.')    
     @click.option('--format', type=click.Choice(['edgelist', 'adjlist']), default='edgelist', help='Output path for the graph file.', required=False)
     @click.option('--seed', type=int, default=None, help='Random seed for reproducibility.')
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         return func(*args, **kwargs)
     return wrapper # End of common_options(.)
+
+
+def write_graph(G, filepath, fmt='edgelist', data=False, msg=True, **kwargs):
+    if not isinstance(G, (nx.Graph, nx.DiGraph, nx.MultiGraph, nx.MultiDiGraph)):
+        raise ValueError("Invalid graph type. Only NetworkX graphs are supported.")
+    dirpath = os.path.dirname(filepath)
+    if not os.path.exists(dirpath):
+        os.makedirs(dirpath, exist_ok=True)
+    if fmt == 'edgelist':
+        nx.write_edgelist(G, filepath, data=data)
+    elif fmt == 'adjlist':
+        nx.write_adjlist(G, filepath)
+    else:
+        raise ValueError("Unsupported format")
 
 @common_options
 @click.option('--mu', type=float, default=0.5, help='Mixing parameter, fraction of intra-community edges to total edges. (0 <= mu <= 1)')
@@ -38,17 +50,15 @@ def common_options(func):
 @click.option('--max-degree', type=int, default=80, help='Maximum degree of nodes.')
 @click.option('--average-degree', type=int, default=20, help='Average degree of nodes.')
 @click.option('--min-degree', type=int, default=None, help='Minimum degree of nodes (mutually exclusive with average-degree).')
-@click.option('--filename', type=click.STRING, help='Output filename as a string. [default: <method>-n<n_nodes>-m<mu>.<format>]')
-@click.option('--outdir', type=click.STRING, default='./', help='Output directory for the graph file.')    
 def lfr(**options):
     """Generate a synthetic graph using the LFR benchmark model."""
     from . import lfr    
-
+    options = rns(options)
     # generate the graph
     G = lfr.generate(**options)
 
     # verify
-    n = options['n_nodes']
+    n = options.n_nodes
     n_nodes = G.number_of_nodes()
     n_edges = G.number_of_edges()
     assert n_nodes == n, f"Expected {n} nodes, got {n_nodes}"
@@ -73,12 +83,12 @@ def lfr(**options):
     print("Diameter (of the largest component):", diameter)   
 
     # save to file
-    mu = options['mu']
-    fmt = options['format']
-    filename=options['filename']
+    mu = options.mu
+    fmt = options.format
+    filename = options.filename
     if(filename is None):
         filename = f'lfr-n{n}-m{mu}.{fmt}'
-    outpath = os.path.join(options['outdir'], filename)
+    outpath = os.path.join(options.outdir, filename)
     click.echo(f"Writing LFR graph to {outpath}... ")
     write_graph(G, outpath, fmt=fmt, data=False, msg="")
     click.echo("                                          done")
