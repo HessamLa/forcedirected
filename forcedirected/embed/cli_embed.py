@@ -68,7 +68,7 @@ def fd_basic(**options):
     
     # Make the filename
     if(options.filename is None):
-        options.filename = f"{options.name}-fd_basic-d{options.n_dim}.{options.format}"
+        options.filename = f"{options.name}-fdbasic-d{options.n_dim}.{options.format}"
     filepath = os.path.join(options.outdir, options.filename)
 
     print("fd-landmark command with params:")
@@ -107,7 +107,7 @@ def fd_shell(**options):
     
     # Make the filename
     if(options.filename is None):
-        options.filename = f"{options.name}-fd_shell-d{options.n_dim}.{options.format}"
+        options.filename = f"{options.name}-fdshell-d{options.n_dim}.{options.format}"
     filepath = os.path.join(options.outdir, options.filename)
 
     print("fd-landmark command with params:")
@@ -152,7 +152,7 @@ def fd_targets(**options):
         options.landmarks_ratio = options.coeffs[6]
 
     if(options.filename is None):
-        options.filename = f"{options.name}-fd_targets-d{options.n_dim}.{options.format}"
+        options.filename = f"{options.name}-fdtargets-d{options.n_dim}.{options.format}"
     filepath = os.path.join(options.outdir, options.filename)
 
     print("fd-landmark command with params:")
@@ -189,7 +189,7 @@ def node2vec(**options):
     options = rns(options)
 
     if(options.filename is None):
-        options.filename = f"{options.name}-fd_targets-d{options.n_dim}.{options.format}"
+        options.filename = f"{options.name}-node2vec-d{options.n_dim}.{options.format}"
     filepath = os.path.join(options.outdir, options.filename)
 
     print("node2vec command with params:")
