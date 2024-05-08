@@ -20,7 +20,7 @@ def common_options(func):
     @click.option('--adjlist', type=click.Path(), help='Path to the adjacency list. Either this or edgelist must be provided.')
     @click.option('--outdir', type=click.Path(), default='./data', help='Output directory for the embeddings.', show_default=True)
     @click.option('--format',  type=click.Choice(['csv', 'pkl']), default='csv', help='Output file type. csv of Pandas pickle.', show_default=True)
-    @click.option('--filename', type=click.Path(), help='Output filename for the embeddings. [default: <method>-n<node-count>.<format>]', show_default=False)
+    @click.option('--filename', type=click.Path(), help='Output filename for the embeddings. [default: <dataset>-<method>-d<dim>.<format>]', show_default=False)
 
     @click.option('--verbosity', type=click.INT, default=2, show_default=True,
                 help='Verbosity level as defined in ForceDirected base model. '
@@ -33,16 +33,16 @@ def common_options(func):
         options = rns(options)
         if(options.edgelist is None and options.adjlist is None):
             raise ValueError("Either edgelist or adjlist must be provided.")
-        if(options.filename is None):
-            options.filename = f"{options.name}-d{options.n_dim}.{options.format}"
         return func(*args, **options)
     return wrapper
 
-def save_embeddings(embeddings_df, filepath, format):
-    columns = [f'dim_{i}' for i in range(embeddings_df.shape[1])]
-    columns[0] = 'id'
-    embeddings_df.columns = columns
-    # get dir
+def save_embeddings(embeddings_df, filepath, format='csv', set_column_names=False):
+    """Save the embeddings to a file."""
+    if(set_column_names is True):
+        # Apply the columns name [id, dim_1, ... dim_d]."""
+        columns = ['id']+[f'dim_{i+1}' for i in range(embeddings_df.shape[1])]
+        embeddings_df.columns = columns
+    
     os.makedirs(os.path.dirname(filepath), exist_ok=True)
     if(format=='csv'):
         embeddings_df.to_csv(filepath, index=False)
@@ -66,13 +66,15 @@ def fd_basic(**options):
         options.k3 = float(options.coeffs[2])
         options.k4 = float(options.coeffs[3])
     
-    print("fd-basic command with params:")
+    # Make the filename
+    if(options.filename is None):
+        options.filename = f"{options.name}-fd_basic-d{options.n_dim}.{options.format}"
+    filepath = os.path.join(options.outdir, options.filename)
+
+    print("fd-landmark command with params:")
     for k,v in options.items():
         print(f"{str(k):<16s}: {v}")
     
-    # Make the filename
-    filepath = os.path.join(options.outdir, options.filename)
-
     if(len(options.edgelist) != 0):
         print("Input graph path     :", options.edgelist)
     elif(len(options.adjlist) != 0):
@@ -84,7 +86,7 @@ def fd_basic(**options):
     from .fd import embed_basic
     embeddings_df = embed_basic(**options)
 
-    save_embeddings(embeddings_df, filepath, options.format)
+    save_embeddings(embeddings_df, filepath, options.format, set_column_names=True)
     # End of fd_basic 
     #########
 
@@ -103,13 +105,15 @@ def fd_shell(**options):
         options.k3 = float(options.coeffs[2])
         options.k4 = float(options.coeffs[3])
     
-    print("fd-basic command with params:")
+    # Make the filename
+    if(options.filename is None):
+        options.filename = f"{options.name}-fd_shell-d{options.n_dim}.{options.format}"
+    filepath = os.path.join(options.outdir, options.filename)
+
+    print("fd-landmark command with params:")
     for k,v in options.items():
         print(f"{str(k):<16s}: {v}")
     
-    # Make the filename
-    filepath = os.path.join(options.outdir, options.filename)
-
     if(len(options.edgelist) != 0):
         print("Input graph path     :", options.edgelist)
     elif(len(options.adjlist) != 0):
@@ -121,7 +125,7 @@ def fd_shell(**options):
     from .fd import embed_shell
     embeddings_df = embed_shell(**options)
 
-    save_embeddings(embeddings_df, filepath, options.format)
+    save_embeddings(embeddings_df, filepath, options.format, set_column_names=True)
     # End of fd_shell 
     #########
 
@@ -147,12 +151,14 @@ def fd_targets(**options):
         options.reach_r = options.coeffs[5]
         options.landmarks_ratio = options.coeffs[6]
 
+    if(options.filename is None):
+        options.filename = f"{options.name}-fd_targets-d{options.n_dim}.{options.format}"
+    filepath = os.path.join(options.outdir, options.filename)
+
     print("fd-landmark command with params:")
     for k,v in options.items():
         print(f"{str(k):<16s}: {v}")
     
-    filepath = os.path.join(options.outdir, options.filename)
-
     if(len(options.edgelist) != 0):
         print("Input graph path     :", options.edgelist)
     elif(len(options.adjlist) != 0):
@@ -164,6 +170,43 @@ def fd_targets(**options):
     from .fd import embed_targets
     embeddings_df = embed_targets(**options)
 
-    save_embeddings(embeddings_df, filepath, options.format)
+    save_embeddings(embeddings_df, filepath, options.format, set_column_names=True)
     # End of fd_targets
+    #########
+
+# node2vec
+@common_options
+@click.option('--p', type=float, default=1.0, help='Return parameter.')
+@click.option('--q', type=float, default=0.5, help='In-out parameter.')
+@click.option('--walk-length', type=int, default=80, help='Walk length.')
+@click.option('--num-walks', type=int, default=10, help='Number of walks.')
+@click.option('--context-size', type=int, default=10, help='Window size.')
+@click.option('--walks-per-node', type=int, default=10, help='Number of walks per node.')
+@click.option('--num-negative-samples', type=int, default=1, help='Number of negative samples.')
+@click.option('--epochs', type=int, default=100, help='Number of epochs.', show_default=True) # override the common options
+def node2vec(**options):
+    """Generate embeddings using the node2vec algorithm."""
+    options = rns(options)
+
+    if(options.filename is None):
+        options.filename = f"{options.name}-fd_targets-d{options.n_dim}.{options.format}"
+    filepath = os.path.join(options.outdir, options.filename)
+
+    print("node2vec command with params:")
+    for k,v in options.items():
+        print(f"{str(k):<16s}: {v}")
+
+    if(len(options.edgelist) != 0):
+        print("Input graph path     :", options.edgelist)
+    elif(len(options.adjlist) != 0):
+        print("Input graph path     :", options.adjlist)    
+    print("Embedding dimensions :", options.n_dim)
+    print("Output directory     :", options.outdir)
+    print("Output filename      :", options.filename)
+
+    from .node2vec import embed_node2vec
+    embeddings_df = embed_node2vec(**options)
+
+    save_embeddings(embeddings_df, filepath, options.format, set_column_names=True)
+    # End of node2vec
     #########
