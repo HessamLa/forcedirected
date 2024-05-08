@@ -18,6 +18,8 @@ import click
 
 from .generate import cli_generate
 from .embed import cli_embed
+from .evaluate import cli_eval
+
 
 @click.group()
 def main():
@@ -27,6 +29,7 @@ def main():
 
 main.add_command(cli_generate, "generate")
 main.add_command(cli_embed, "embed")
+main.add_command(cli_eval, "evaluate")
 
 if __name__ == "__main__":
     main()
