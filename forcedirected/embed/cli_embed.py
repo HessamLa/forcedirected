@@ -178,9 +178,9 @@ def fdtargets(**options):
 # node2vec
 @common_options
 @click.option('-p', '--p', type=float, default=1.0, help='Return parameter.')
-@click.option('-p', '--q', type=float, default=0.5, help='In-out parameter.')
+@click.option('-p', '--q', type=float, default=1.0, help='In-out parameter.')
 @click.option('--walk-length', type=int, default=80, help='Walk length.')
-@click.option('--num-walks', type=int, default=10, help='Number of walks.')
+@click.option('--num-walks', type=int, default=20, help='Number of walks.')
 @click.option('--context-size', type=int, default=10, help='Window size.')
 @click.option('--walks-per-node', type=int, default=10, help='Number of walks per node.')
 @click.option('--num-negative-samples', type=int, default=1, help='Number of negative samples.')
