@@ -19,7 +19,7 @@ def common_options(func):
     @click.option('-e', '--edgelist', type=click.Path(), help='Path to the edge list file. Either this or adjlist must be provided. (Somewhat required)')
     @click.option('--adjlist', type=click.Path(), help='Path to the adjacency list. Either this or edgelist must be provided.')
     @click.option('--outdir', type=click.Path(), default='./data', help='Output directory for the embeddings.', show_default=True)
-    @click.option('--format', type=click.Choice(['csv', 'pkl']), default='csv', help='Output file type. csv of Pandas pickle.', show_default=True)
+    @click.option('--format',  type=click.Choice(['csv', 'pkl']), default='csv', help='Output file type. csv of Pandas pickle.', show_default=True)
     @click.option('--filename', type=click.Path(), help='Output filename for the embeddings. [default: <method>-n<node-count>.<format>]', show_default=False)
 
     @click.option('--verbosity', type=click.INT, default=2, show_default=True,
@@ -39,6 +39,9 @@ def common_options(func):
     return wrapper
 
 def save_embeddings(embeddings_df, filepath, format):
+    columns = [f'dim_{i}' for i in range(embeddings_df.shape[1])]
+    columns[0] = 'id'
+    embeddings_df.columns = columns
     # get dir
     os.makedirs(os.path.dirname(filepath), exist_ok=True)
     if(format=='csv'):
