@@ -35,7 +35,7 @@ class ForceDirected(torch.nn.Module, Model_Base):
         """Returns embeddings as a numpy object"""
         return self.Z.detach().cpu().numpy()
     
-    def get_embeddings_df(self):
+    def get_embeddings_df(self, columns=None):
         """Returns embeddings as a pandas dataframe, with nodes as indices"""
         import pandas as pd
         import numpy as np
@@ -43,7 +43,7 @@ class ForceDirected(torch.nn.Module, Model_Base):
         emb = self.get_embeddings()
 
         # Convert embeddings to a DataFrame
-        columns = ['node_label'] + [f'dim_{i+1}' for i in range(emb.shape[1])]
+        # columns = ['node_label'] + [f'dim_{i+1}' for i in range(emb.shape[1])]
         data = np.column_stack([node_labels, emb])
         df = pd.DataFrame(data, columns=columns)
         return df
