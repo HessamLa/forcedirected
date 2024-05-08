@@ -40,7 +40,8 @@ def save_embeddings(embeddings_df, filepath, format='csv', set_column_names=Fals
     """Save the embeddings to a file."""
     if(set_column_names is True):
         # Apply the columns name [id, dim_1, ... dim_d]."""
-        columns = ['id']+[f'dim_{i+1}' for i in range(embeddings_df.shape[1])]
+        columns = [f'dim_{i}' for i in range(embeddings_df.shape[1])]
+        columns[0] = 'id'
         embeddings_df.columns = columns
     
     os.makedirs(os.path.dirname(filepath), exist_ok=True)
@@ -57,7 +58,7 @@ def save_embeddings(embeddings_df, filepath, format='csv', set_column_names=Fals
 @click.option('--k3', type=float, default=10.0,  help='k3 parameter.')
 @click.option('--k4', type=float, default=0.01,  help='k4 parameter.')
 @click.option('--coeffs', nargs=4, type=float, help='Coefficients for the force calculation. If provided, overrides k1, k2, k3, k4. Used to shorten the syntanx.')
-def fd_basic(**options):
+def fdbasic(**options):
     """Generate embeddings using the force-directed basic algorithm."""
     options = rns(options)
     if(options.coeffs is not None):
@@ -96,7 +97,7 @@ def fd_basic(**options):
 @click.option('--k3', type=float, default=10.0,  help='k3 parameter.')
 @click.option('--k4', type=float, default=0.01,  help='k4 parameter.')
 @click.option('--coeffs', nargs=4, type=float, help='Coefficients for the force calculation. If provided, overrides k1, k2, k3, k4. Used to shorten the syntanx.')
-def fd_shell(**options):
+def fdshell(**options):
     """Generate embeddings using the force-directed basic algorithm with shell averaging."""
     options = rns(options)
     if(options.coeffs is not None):
@@ -139,7 +140,7 @@ def fd_shell(**options):
 @click.option('-L', '--landmarks_ratio', type=click.FloatRange(0, 1.0), default=0.01, help='Ratio of landmark nodes (top ratio of degrees).')
 @click.option('--coeffs', nargs=7, type=(float, float, float, float, int, int, click.FloatRange(0, 1.0)), 
               help='Coefficients for the force calculation. If provided, overrides other parameters. Used to shorten the syntanx.')
-def fd_targets(**options):
+def fdtargets(**options):
     """Generate embeddings using the force-directed algorithm with selective target nodes."""
     options = rns(options)
     if(options.coeffs is not None):
