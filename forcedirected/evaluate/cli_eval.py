@@ -80,8 +80,7 @@ def load_embeddings(filepath, format):
         else:
             raise ValueError(f"Unknown embeddings format: {format}")
     except Exception as e:
-        print(f"Error loading embeddings from {filepath}")
-        print(e)
+        raise(f"Error loading embeddings from {filepath}. {e}")
     print(f"Embeddings loaded from {filepath}")
     return embeddings
     # End of load_embeddings
@@ -89,11 +88,18 @@ def load_embeddings(filepath, format):
 
 @common_options
 @click.option('-y', '--path_label', type=click.Path(), show_default=False, help='Path to the labels file. Labels are in a space-separated file with the first column as the node id (str) and last column as the label.')
+@click.option('--test-size', type=click.FloatRange(0.0, 1.0), default=0.5, help='Ratio of the test size.')
+@click.option('--train-size', type=click.FloatRange(0.0, 1.0), default=None, help='Ratio of the test size.')
 @click.option('--classifier', 'classification_model', type=click.Choice(['rf', 'lr', 'knn', 'mlp', 'ada']), default='rf', show_default=True, 
                 help='Classifier to use for node classification. rf: Random Forest, lr: Logistic Regression, knn: K-Nearest Neighbors, mlp: Multi-Layer Perceptron, ada: AdaBoost.')
 def nc(**options):
     """Evaluate the node classification performance of the embeddings."""
     options = rns(options)
+    if(options.train_size is None):
+        options.train_size = 1 - options.test_size
+    else:
+        options.test_size = 1 - options.train_size
+
     print("Node classification evaluation command with params:")
     for k,v in options.items():
         print(f"{str(k):<16s}: {v}")
@@ -121,13 +127,16 @@ def nc(**options):
     
 
     from .node_classification import eval_nc
-    results = eval_nc(embeddings.iloc[:,1:], y.iloc[:,1:])
+    results = eval_nc(embeddings.iloc[:,1:], y.iloc[:,1:], test_size=options.test_size)
 
     print("Node classification results:")
     for k,v in results.items():
         if(k=='confusion'):
-            print(f"{str(k):<16s}:\n{v}")
+            # print(f"{str(k):<16s}:\n{v}")
+            pass # for now, don't show the confusion matrix
         else:
+            if(isinstance(v, float)): v = f"{v:.4f}"
+            elif(isinstance(v, int)): v = str(v)
             print(f"{str(k):<16s}: {v}")
     # End of eval_nc
     #########
