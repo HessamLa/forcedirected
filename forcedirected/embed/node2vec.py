@@ -14,7 +14,7 @@ import pandas as pd
 import networkx as nx
 from ..utilities import load_graph
 
-def embed_node2vec(n_dim:int, p=1.0, q=0.5, walk_length=20, context_size=10, walks_per_node=10, num_negative_samples=1, 
+def embed_node2vec(n_dim:int, p=1.0, q=0.5, walk_length=100, context_size=20, walks_per_node=20, num_negative_samples=1, 
                    epochs:int=1000, device:str='auto', **kwargs):
     """
     Returns a Pandas dataframe with node embeddings generated using the Node2Vec algorithm.
@@ -35,10 +35,10 @@ def embed_node2vec(n_dim:int, p=1.0, q=0.5, walk_length=20, context_size=10, wal
     model = Node2Vec(
         data.edge_index,
         embedding_dim=n_dim,
-        walk_length=20,
-        context_size=10,
-        walks_per_node=10,
-        num_negative_samples=1,
+        walk_length=walk_length,
+        context_size=context_size,
+        walks_per_node=walks_per_node,
+        num_negative_samples=num_negative_samples,
         p=p,
         q=q,
         sparse=True,
