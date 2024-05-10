@@ -75,87 +75,14 @@ def embed_basic(n_dim:int, epochs:int=1000, device:str='auto', **kwargs):
     from forcedirected.models import model_201_basic as model_module
     return embed(n_dim, model_module, epochs, device, **kwargs)
 
-    # load the graph
-    Gx = load_graph(edgelist=kwargs['edgelist'], adjlist=kwargs['adjlist'], nodelist=kwargs['nodelist'])
-    if(Gx.number_of_nodes()==0):
-        print("Graph is empty")
-        exit(1)
-    print("Number of nodes:", Gx.number_of_nodes())
-    print("Number of edges:", Gx.number_of_edges())
-    print("Number of connected components:", nx.number_connected_components(Gx))    
-
-    # create the embedding function
-    print("Creating the forcedirected object")
-    from ..models.model_201_basic import FDModel
-    fdobj = FDModel(Gx, n_dim, **kwargs)
-    print(fdobj)
-    
-    # set the device
-    if(device=='auto'):
-        device = 'cuda' if torch.cuda.is_available() else 'cpu'
-
-    # make the embeddings
-    fdobj.embed(epochs=epochs, device=device)
-    embeddings_df = fdobj.get_embeddings_df()
-    return embeddings_df # End of embed(.)
-
 def embed_shell(n_dim:int, epochs:int=1000, device:str='auto', **kwargs):
     """Function for graph embedding using forcedirected with shell averaging method."""
     model_str = 'forcedirected.models.model_204_shell'
     from forcedirected.models import model_204_shell as model_module
     return embed(n_dim, model_module, epochs, device, **kwargs)
 
-    # load the graph
-    Gx = load_graph(edgelist=kwargs['edgelist'], adjlist=kwargs['adjlist'], nodelist=kwargs['nodelist'])
-    if(Gx.number_of_nodes()==0):
-        print("Graph is empty")
-        exit(1)
-    print("Number of nodes:", Gx.number_of_nodes())
-    print("Number of edges:", Gx.number_of_edges())
-    print("Number of connected components:", nx.number_connected_components(Gx))    
-
-    # create the embedding function
-    print("Creating the forcedirected object")
-    from ..models.model_204_shell import FDModel
-    fdobj = FDModel(Gx, n_dim, **kwargs)
-    print(fdobj)
-    
-    # set the device
-    if(device=='auto'):
-        device = 'cuda' if torch.cuda.is_available() else 'cpu'
-
-    # make the embeddings
-    fdobj.embed(epochs=epochs, device=device)
-    embeddings_df = fdobj.get_embeddings_df()
-    return embeddings_df # End of embed(.)
-
 
 def embed_targets(n_dim:int, epochs:int=1000, device:str='auto', **kwargs):
     """Function for graph embedding using forcedirected with shell averaging and selected targets method."""
     from forcedirected.models import model_214_targets as model_module
     return embed(n_dim, model_module, epochs, device, **kwargs)
-
-    # load the graph
-    Gx = load_graph(edgelist=kwargs['edgelist'], adjlist=kwargs['adjlist'], nodelist=kwargs['nodelist'])
-    if(Gx.number_of_nodes()==0):
-        print("Graph is empty")
-        exit(1)
-    print("Number of nodes:", Gx.number_of_nodes())
-    print("Number of edges:", Gx.number_of_edges())
-    print("Number of connected components:", nx.number_connected_components(Gx))    
-
-    # create the embedding function
-    print("Creating the forcedirected object")
-    from ..models.model_204_shell import FDModel
-    fdobj = FDModel(Gx, n_dim, **kwargs)
-    print(fdobj)
-    
-    # set the device
-    if(device=='auto'):
-        device = 'cuda' if torch.cuda.is_available() else 'cpu'
-
-    # make the embeddings
-    fdobj.embed(epochs=epochs, device=device)
-    embeddings_df = fdobj.get_embeddings_df()
-    return embeddings_df # End of embed(.)
-
