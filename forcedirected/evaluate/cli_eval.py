@@ -90,7 +90,7 @@ def load_embeddings(filepath, format):
 @click.option('-y', '--path_label', type=click.Path(), show_default=False, help='Path to the labels file. Labels are in a space-separated file with the first column as the node id (str) and last column as the label.')
 @click.option('--test-size', type=click.FloatRange(0.0, 1.0), default=0.5, help='Ratio of the test size.')
 @click.option('--train-size', type=click.FloatRange(0.0, 1.0), default=None, help='Ratio of the test size.')
-@click.option('--classifier', 'classification_model', type=click.Choice(['rf', 'lr', 'knn', 'mlp', 'ada']), default='rf', show_default=True, 
+@click.option('--classifier', 'classifier', type=click.Choice(['rf', 'lr', 'knn', 'mlp', 'ada']), default='rf', show_default=True, 
                 help='Classifier to use for node classification. rf: Random Forest, lr: Logistic Regression, knn: K-Nearest Neighbors, mlp: Multi-Layer Perceptron, ada: AdaBoost.')
 def nc(**options):
     """Evaluate the node classification performance of the embeddings."""
@@ -127,7 +127,7 @@ def nc(**options):
     
 
     from .node_classification import eval_nc
-    results = eval_nc(embeddings.iloc[:,1:], y.iloc[:,1:], test_size=options.test_size)
+    results = eval_nc(embeddings.iloc[:,1:], y.iloc[:,1:], test_size=options.test_size, classification_model=options.classifier)
 
     print("Node classification results:")
     for k,v in results.items():
