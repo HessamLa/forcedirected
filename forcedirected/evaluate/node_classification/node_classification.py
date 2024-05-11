@@ -10,6 +10,8 @@ from sklearn.linear_model import LogisticRegression # lr
 from sklearn.neural_network import MLPClassifier    # mlp
 from sklearn.neighbors import KNeighborsClassifier  # knn
 from sklearn.ensemble import AdaBoostClassifier     # ada
+from sklearn.tree import DecisionTreeClassifier     # dt
+from sklearn.svm import LinearSVC                   # svc
 # import all metrics
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, roc_auc_score, confusion_matrix
 
@@ -19,29 +21,50 @@ __all__ = [
     'NodeClassification', 'eval_nc',
 ]
 
+# from ..evaluate import classifier_models
+from forcedirected.evaluate import classifier_models
+# classifier_models=rns(
+#     lr  =rns(fullname='Logistic Reg.', 
+#             instantiate=lambda *args, max_iter=500, n_jobs=-1, **kwargs: LogisticRegression(*args, max_iter=max_iter, n_jobs=n_jobs, **kwargs)),
+#     knn =rns(fullname='K Nearest Neighbors',  
+#             instantiate=lambda *args, n_jobs=-1, **kwargs: KNeighborsClassifier(*args, n_jobs=n_jobs, **kwargs)),
+#     rf  =rns(fullname='Random Forest',  
+#             instantiate=lambda *args, min_samples_split=0.02, n_jobs=-1, **kwargs: RandomForestClassifier(*args, min_samples_split=min_samples_split, n_jobs=n_jobs, **kwargs)),
+#     dt  =rns(fullname='Decision Tree',  
+#             instantiate=lambda *args, min_samples_split=0.02, **kwargs: DecisionTreeClassifier(*args, min_samples_split=min_samples_split, **kwargs)),
+#     ada =rns(fullname='AdaBoost',  
+#             instantiate=lambda *args, **kwargs: AdaBoostClassifier(*args, **kwargs)),
+#     svc =rns(fullname='Linear SVC',  
+#             instantiate=lambda *args, **kwargs: LinearSVC(*args, **kwargs)),
+#     mlp =rns(fullname='MLP',
+#             instantiate=lambda *args, hidden_layer_sizes=(256,), solver='adam', **kwargs: MLPClassifier(*args, hidden_layer_sizes=hidden_layer_sizes, solver=solver, **kwargs)),
+# )
+
 class NodeClassification:
     def __init__(self, embeddings=None, labels=None, test_size:float=0.5, classification_model:str='rf', seed=None, **kwargs) -> None:
         self.embeddings = None
         self.labels = None
+        self.clf = None
         self.setup(embeddings, labels, test_size, classification_model, seed, **kwargs)
 
     def setup(self, embeddings=None, labels=None, test_size:float=None, classification_model:str=None, seed=None, fit_transform=False, **kwargs):
         # create the classification model
-        if(classification_model is None):
-            pass
-        elif(classification_model=='rf'):
-            self.clf = RandomForestClassifier(random_state=seed, **kwargs)
-        elif(classification_model=='lr'):
-            self.clf = LogisticRegression(random_state=seed, **kwargs)
-        elif(classification_model=='mlp'):
-            self.clf = MLPClassifier(random_state=seed, **kwargs)
-        elif(classification_model=='knn'):
-            self.clf = KNeighborsClassifier(**kwargs)
-        elif(classification_model=='ada'):
-            self.clf = AdaBoostClassifier(random_state=seed, **kwargs)
-        else:
-            raise ValueError(f"Invalid classification model: {classification_model}")
-        
+        # if(classification_model is None):
+        #     pass
+        # elif(classification_model=='rf'):
+        #     self.clf = RandomForestClassifier(random_state=seed, **kwargs)
+        # elif(classification_model=='lr'):
+        #     self.clf = LogisticRegression(random_state=seed, **kwargs)
+        # elif(classification_model=='mlp'):
+        #     self.clf = MLPClassifier(random_state=seed, **kwargs)
+        # elif(classification_model=='knn'):
+        #     self.clf = KNeighborsClassifier(**kwargs)
+        # elif(classification_model=='ada'):
+        #     self.clf = AdaBoostClassifier(random_state=seed, **kwargs)
+        # else:
+        #     raise ValueError(f"Invalid classification model: {classification_model}")
+    
+
         if(embeddings is not None):
             if(isinstance(embeddings, pd.DataFrame)):
                 embeddings = embeddings.values
@@ -52,10 +75,13 @@ class NodeClassification:
                 labels = labels.values
             self.labels = labels
 
+        if(classification_model is not None):
+            self.clf = classifier_models[classification_model].instantiate()
+
         if(test_size is not None):
             self.test_size = test_size
 
-        if(self.embeddings is None or self.labels is None or self.test_size is None):
+        if(self.clf is None or self.embeddings is None or self.labels is None or self.test_size is None):
             print("WARNING NodeClassification: Node embeddings and/or labels are not setup.")
             return
 
