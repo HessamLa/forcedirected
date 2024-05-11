@@ -61,7 +61,8 @@ def read_csv(file_path):
             headers = next(reader)  # Extract headers
             print("Detected headers:", headers)
         else:
-            print("No headers detected.")
+            # print("No headers detected.")
+            pass
 
         # Read and print the rest of the rows
         data = list(reader)
@@ -90,8 +91,8 @@ def load_embeddings(filepath, format):
 @click.option('-y', '--path_label', type=click.Path(), show_default=False, help='Path to the labels file. Labels are in a space-separated file with the first column as the node id (str) and last column as the label.')
 @click.option('--test-size', type=click.FloatRange(0.0, 1.0), default=0.5, help='Ratio of the test size.')
 @click.option('--train-size', type=click.FloatRange(0.0, 1.0), default=None, help='Ratio of the test size.')
-@click.option('--classifier', 'classifier', type=click.Choice(['rf', 'lr', 'knn', 'mlp', 'ada']), default='rf', show_default=True, 
-                help='Classifier to use for node classification. rf: Random Forest, lr: Logistic Regression, knn: K-Nearest Neighbors, mlp: Multi-Layer Perceptron, ada: AdaBoost.')
+@click.option('--classifier', 'classifier', type=click.Choice(['rf', 'lr', 'knn', 'mlp', 'ada', 'svc', 'dt']), default='rf', show_default=True, 
+                help='Classifier to use for node classification. rf: Random Forest, lr: Logistic Regression, knn: K-Nearest Neighbors, mlp: Multi-Layer Perceptron, ada: AdaBoost, svc: Support Vector Classifier, dt: Decision Tree.')
 def nc(**options):
     """Evaluate the node classification performance of the embeddings."""
     options = rns(options)
@@ -100,7 +101,7 @@ def nc(**options):
     else:
         options.test_size = 1 - options.train_size
 
-    print("Node classification evaluation command with params:")
+    print("Node Classification evaluation command with params:")
     for k,v in options.items():
         print(f"{str(k):<16s}: {v}")
 
