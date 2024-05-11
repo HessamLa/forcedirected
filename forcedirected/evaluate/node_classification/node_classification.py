@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 from forcedirected.utilities import load_graph
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
 # import all classifiers
 from sklearn.ensemble import RandomForestClassifier # rf
 from sklearn.linear_model import LogisticRegression # lr
@@ -24,7 +25,7 @@ class NodeClassification:
         self.labels = None
         self.setup(embeddings, labels, test_size, classification_model, seed, **kwargs)
 
-    def setup(self, embeddings=None, labels=None, test_size:float=None, classification_model:str=None, seed=None, **kwargs):
+    def setup(self, embeddings=None, labels=None, test_size:float=None, classification_model:str=None, seed=None, fit_transform=False, **kwargs):
         # create the classification model
         if(classification_model is None):
             pass
@@ -57,7 +58,11 @@ class NodeClassification:
         if(self.embeddings is None or self.labels is None or self.test_size is None):
             print("WARNING NodeClassification: Node embeddings and/or labels are not setup.")
             return
-        
+
+        if(fit_transform):
+            scaler = StandardScaler()
+            self.embeddings = scaler.fit_transform(self.embeddings)
+
         self.X_train, self.X_test, self.y_train, self.y_test = \
             train_test_split(self.embeddings, self.labels, test_size=test_size, shuffle=True, random_state=seed)
         # Reshape y_train and y_test to ensure they are 1D arrays
@@ -66,9 +71,6 @@ class NodeClassification:
         pass
 
     def evaluate(self):
-        print(self.X_train.shape, self.X_test.shape)
-        print(self.y_train.shape, self.y_test.shape)
-        print("Classification model:", self.clf)
         # fit the model
         self.clf.fit(self.X_train, self.y_train)
         self.y_pred = self.clf.predict(self.X_test)
