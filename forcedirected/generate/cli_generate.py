@@ -1,13 +1,13 @@
 import click
+@click.group()
+def cli_generate():
+    """Main entry point for synthetic graph generation CLI tool."""
+    pass
+
 import os, sys
 import functools
 import networkx as nx
 from recursivenamespace import rns
-
-@click.group()
-def cli_generate():
-    """Main entry point for the graph generation CLI tool."""
-    pass
 
 @cli_generate.group()
 def generate():

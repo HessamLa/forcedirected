@@ -1,15 +1,15 @@
-import os
 import click
+@click.group()
+def cli_eval():
+    """CLI tool for evaluation of the graph embeddings."""
+    pass
+
+import os
 import functools
 import pandas as pd
 import numpy as np
 
 from recursivenamespace import rns
-
-@click.group()
-def cli_eval():
-    """Main entry point for the graph generation CLI tool."""
-    pass
 
 def common_options(func):
     """Decorator to apply common options to graph generation commands."""
