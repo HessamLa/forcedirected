@@ -47,24 +47,7 @@ class NodeClassification:
         self.clf = None
         self.setup(embeddings, labels, test_size, classification_model, seed, **kwargs)
 
-    def setup(self, embeddings=None, labels=None, test_size:float=None, classification_model:str=None, seed=None, fit_transform=False, **kwargs):
-        # create the classification model
-        # if(classification_model is None):
-        #     pass
-        # elif(classification_model=='rf'):
-        #     self.clf = RandomForestClassifier(random_state=seed, **kwargs)
-        # elif(classification_model=='lr'):
-        #     self.clf = LogisticRegression(random_state=seed, **kwargs)
-        # elif(classification_model=='mlp'):
-        #     self.clf = MLPClassifier(random_state=seed, **kwargs)
-        # elif(classification_model=='knn'):
-        #     self.clf = KNeighborsClassifier(**kwargs)
-        # elif(classification_model=='ada'):
-        #     self.clf = AdaBoostClassifier(random_state=seed, **kwargs)
-        # else:
-        #     raise ValueError(f"Invalid classification model: {classification_model}")
-    
-
+    def setup(self, embeddings=None, labels=None, test_size:float=None, classification_model:str=None, seed=None, fit_transform=False, prepare_data=True, **kwargs):
         if(embeddings is not None):
             if(isinstance(embeddings, pd.DataFrame)):
                 embeddings = embeddings.values
@@ -89,11 +72,12 @@ class NodeClassification:
             scaler = StandardScaler()
             self.embeddings = scaler.fit_transform(self.embeddings)
 
-        self.X_train, self.X_test, self.y_train, self.y_test = \
-            train_test_split(self.embeddings, self.labels, test_size=test_size, shuffle=True, random_state=seed)
-        # Reshape y_train and y_test to ensure they are 1D arrays
-        self.y_train = self.y_train.ravel()
-        self.y_test = self.y_test.ravel()
+        if(prepare_data):    
+            self.X_train, self.X_test, self.y_train, self.y_test = \
+                train_test_split(self.embeddings, self.labels, test_size=test_size, shuffle=True, random_state=seed)
+            # Reshape y_train and y_test to ensure they are 1D arrays
+            self.y_train = self.y_train.ravel()
+            self.y_test = self.y_test.ravel()
         pass
 
     def evaluate(self):
