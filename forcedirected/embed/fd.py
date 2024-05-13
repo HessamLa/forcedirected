@@ -5,7 +5,7 @@ from typing import Any
 import importlib
 import networkx as nx
 import torch 
-from ..utilities import load_graph
+from forcedirected.utilities import load_graph
 
 # print("TESTING IMPORT METHOD 1")
 # from ..models.ForceDirected import ForceDirected

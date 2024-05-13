@@ -85,7 +85,7 @@ def fd_base(**options):
 @click.option('--k4', type=float, default=0.01,  help='k4 parameter.')
 @click.option('--coeffs', nargs=4, type=float, help='Coefficients for the force calculation. If provided, overrides k1, k2, k3, k4. Used to shorten the syntanx.')
 def fd(**options):
-    """Generate embeddings using the force-directed algorithm, with the provided model."""
+    """Embed using the force-directed algorithm, with the provided model."""
     options = rns(options)
     if(options.filename is None):
         options.filename = f"{options.name}-{options.model_module}-d{options.n_dim}.{options.format}"
@@ -103,7 +103,7 @@ def fd(**options):
 @click.option('--k4', type=float, default=0.01,  help='k4 parameter.')
 @click.option('--coeffs', nargs=4, type=float, help='Coefficients for the force calculation. If provided, overrides k1, k2, k3, k4. Used to shorten the syntanx.')
 def fdbasic(**options):
-    """Generate embeddings using the force-directed basic algorithm."""
+    """Embed using the force-directed basic algorithm."""
     options = rns(options)
     # set the parameters
     if(options.coeffs is not None):
@@ -129,7 +129,7 @@ def fdbasic(**options):
 @click.option('--k4', type=float, default=0.01,  help='k4 parameter.')
 @click.option('--coeffs', nargs=4, type=float, help='Coefficients for the force calculation. If provided, overrides k1, k2, k3, k4. Used to shorten the syntanx.')
 def fdshell(**options):
-    """Generate embeddings using the force-directed basic algorithm with shell averaging."""
+    """Embed using the force-directed basic algorithm with shell averaging."""
     options = rns(options)
     if(options.coeffs is not None):
         options.k1 = float(options.coeffs[0])
@@ -157,7 +157,7 @@ def fdshell(**options):
 @click.option('--coeffs', nargs=7, type=(float, float, float, float, int, int, click.FloatRange(0, 1.0)), 
               help='Coefficients for the force calculation. If provided, overrides other parameters. Used to shorten the syntanx.')
 def fdtargets(**options):
-    """Generate embeddings using the force-directed algorithm with selective target nodes."""
+    """Embed using the force-directed algorithm with selective target nodes."""
     options = rns(options)
     # set the parameters
     if(options.coeffs is not None):
@@ -178,6 +178,38 @@ def fdtargets(**options):
     # End of fdtargets
     #########
 
+@common_options
+@click.option('-k1','--k1',      type=float, default=0.999, help='k1 parameter.')
+@click.option('-k2','--k2',      type=float, default=1.0,   help='k2 parameter.')
+@click.option('-k3','--k3',      type=float, default=10.0,  help='k3 parameter.')
+@click.option('-k4','--k4',      type=float, default=0.01,  help='k4 parameter.')
+@click.option('-a', '--reach_a', type=int,   default=1,    help='Attractive reach parameter.')
+@click.option('-r', '--reach_r', type=int,   default=4,    help='Repulsive reach parameter.')
+@click.option('-L', '--landmarks_ratio', type=click.FloatRange(0, 1.0), default=0.01, help='Ratio of landmark nodes (top ratio of degrees).')
+@click.option('--coeffs', nargs=7, type=(float, float, float, float, int, int, click.FloatRange(0, 1.0)), 
+              help='Coefficients for the force calculation. If provided, overrides other parameters. Used to shorten the syntanx.')
+def fdtargets_mem(**options):
+    """Embed using the force-directed algorithm with selective target nodes (optimized memory utilization implementation)."""
+    options = rns(options)
+    # set the parameters
+    if(options.coeffs is not None):
+        options.k1 = options.coeffs[0]
+        options.k2 = options.coeffs[1]
+        options.k3 = options.coeffs[2]
+        options.k4 = options.coeffs[3]
+        options.reach_a = options.coeffs[4]
+        options.reach_r = options.coeffs[5]
+        options.landmarks_ratio = options.coeffs[6]
+    if(options.filename is None):
+        options.filename = f"{options.name}-fdtargets_mem-d{options.n_dim}.{options.format}"
+
+    from forcedirected.models import model_215_targets_mem
+    options.model_module = model_215_targets_mem
+    fd_base(**options)
+    return
+    # End of fdtargets
+    #########
+
 # node2vec
 @common_options
 @click.option('-p', '--p', type=float, default=1.0, help='Return parameter.')
@@ -189,7 +221,7 @@ def fdtargets(**options):
 @click.option('--num-negative-samples', type=int, default=1, help='Number of negative samples.')
 @click.option('--epochs', type=int, default=100, help='Number of epochs.', show_default=True) # override the common options
 def node2vec(**options):
-    """Generate embeddings using the node2vec algorithm."""
+    """Embed using the node2vec algorithm."""
     options = rns(options)
 
     if(options.filename is None):
@@ -226,7 +258,7 @@ def node2vec(**options):
 # @click.option('--num-negative-samples', type=int, default=1, help='Number of negative samples.')
 @click.option('--epochs', type=int, default=100, help='Number of epochs.', show_default=True) # override the common options
 def graphsage(**options):
-    """Generate embeddings using the GraphSAGE algorithm."""
+    """Embed using the GraphSAGE algorithm."""
     options = rns(options)
 
     if(options.filename is None):
@@ -263,7 +295,7 @@ def graphsage(**options):
 # @click.option('--num-negative-samples', type=int, default=1, help='Number of negative samples.')
 @click.option('--epochs', type=int, default=100, help='Number of epochs.', show_default=True) # override the common options
 def line(**options):
-    """Generate embeddings using the LINE algorithm."""
+    """Embed using the LINE algorithm."""
     options = rns(options)
 
     if(options.filename is None):
