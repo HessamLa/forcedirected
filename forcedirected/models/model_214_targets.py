@@ -81,7 +81,7 @@ def get_landmarks_idx_by_degree(Gx, ratio=0.05):
 
 class FDModel(ForceDirected):
     """Force Directed Model"""
-    VER_MIN="24"
+    VER_MIN="14"
     DESCRIPTION=f"The shell FD model with target nodes: f(x) =1/|S_h(u)| * ( xe^(-h+1) - he^(-x) ) . Fa from S_a(u)+L, F_r from S_r(u)+L."
     def __init__(self, Gx, n_dim,
                 k1:float=0.999, k2:float=1.0, k3:float=10.0, k4:float=0.01,
