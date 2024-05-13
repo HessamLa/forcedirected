@@ -1,4 +1,4 @@
-# Copyright 2024 The Force-Directed Graph Embedding author.
+# Copyright 2024 The Force-Directed Graph Embedding author, Hamidreza Lotfalizadeh.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,7 +19,6 @@ import click
 from .generate import cli_generate
 from .embed import cli_embed
 from .evaluate import cli_eval
-
 
 @click.group()
 def main():
