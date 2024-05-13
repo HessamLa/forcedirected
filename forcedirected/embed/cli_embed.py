@@ -32,7 +32,14 @@ def common_options(func):
     def wrapper(*args, **options):
         options = rns(options)
         if(options.edgelist is None and options.adjlist is None):
-            raise ValueError("Either edgelist or adjlist must be provided.")
+            print("Either edgelist or adjlist must be provided.")
+            exit(1)
+        if(options.edgelist and not os.path.exists(options.edgelist)):
+            print(f"Edge list file not found: {options.edgelist}")
+            exit(1)
+        if(options.adjlist and not os.path.exists(options.adjlist)):
+            print(f"Adjacency list file not found: {options.adjlist}")
+            exit(1)        
         return func(*args, **options)
     return wrapper
 
