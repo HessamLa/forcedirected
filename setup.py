@@ -6,7 +6,7 @@ with open('README.md', 'r', encoding='utf-8') as f:
 setup(
     name='forcedirected',
     version='0.2.2',
-    author='Hamidreza Lotfalizadeh (Hessam)',
+    author='Hamidreza Lotfalizadeh',
     author_email='hlotfali_at_purdue_edu',
     description='Force-Directed graph embedding',
     long_description=long_description,
