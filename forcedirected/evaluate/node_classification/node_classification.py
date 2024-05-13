@@ -41,30 +41,41 @@ from forcedirected.evaluate import classifier_models
 # )
 
 class NodeClassification:
-    def __init__(self, embeddings=None, labels=None, test_size:float=0.5, classification_model:str='rf', seed=None, **kwargs) -> None:
-        self.embeddings = None
-        self.labels = None
+    def __init__(self, embeddings:np.ndarray|pd.DataFrame=None, labels:np.ndarray|pd.DataFrame=None, test_size:float=0.5, classification_model:str='rf', seed=None, **kwargs) -> None:
+        """
+        Initializes the NodeClassification object.
+        - embeddings: np.ndarray or pd.DataFrame of node embeddings shape (n_nodes, n_features)
+        - labels: np.ndarray or pd.DataFrame of node labels shape (n_nodes, 1)
+        - test_size: float, ratio of test size
+        - classification_model: str, name of the classification model to use
+        - seed: int, random seed
+        """
+        self.Z = None # the embeddings
+        self.y = None # the labels
         self.clf = None
         self.setup(embeddings, labels, test_size, classification_model, seed, **kwargs)
 
-    def setup(self, embeddings=None, labels=None, test_size:float=None, classification_model:str=None, seed=None, fit_transform=False, prepare_data=True, **kwargs):
+    def setup(self, embeddings:np.ndarray|pd.DataFrame=None, labels:np.ndarray|pd.DataFrame=None, test_size:float=None, classification_model:str=None, seed=None, fit_transform=False, prepare_data=True, **kwargs):
+        """Setup the data and classifier.
+        - prepare_data: bool, whether to prepare the data for evaluation. If True, the data is split into train test sets.
+        """
         if(embeddings is not None):
             if(isinstance(embeddings, pd.DataFrame)):
                 embeddings = embeddings.values
-            self.embeddings = embeddings
+            self.Z = embeddings
         
         if(labels is not None):
             if(isinstance(labels, pd.DataFrame)):
                 labels = labels.values
-            self.labels = labels
+            self.y = labels.ravel()
 
         if(classification_model is not None):
-            self.clf = classifier_models[classification_model].instantiate()
+            self.clf = classifier_models[classification_model].instantiate(random_state=seed)
 
         if(test_size is not None):
             self.test_size = test_size
 
-        if(self.clf is None or self.embeddings is None or self.labels is None or self.test_size is None):
+        if(self.clf is None or self.Z is None or self.y is None or self.test_size is None):
             print("WARNING NodeClassification: Node embeddings and/or labels are not setup.")
             return
 
@@ -73,29 +84,39 @@ class NodeClassification:
             self.embeddings = scaler.fit_transform(self.embeddings)
 
         if(prepare_data):    
-            self.X_train, self.X_test, self.y_train, self.y_test = \
-                train_test_split(self.embeddings, self.labels, test_size=test_size, shuffle=True, random_state=seed)
-            # Reshape y_train and y_test to ensure they are 1D arrays
-            self.y_train = self.y_train.ravel()
-            self.y_test = self.y_test.ravel()
+            print("Preparing data for node classification...",seed)
+            Xidx = np.arange(self.Z.shape[0])
+            yidx = np.arange(self.y.shape[0])
+            self.X_train_idx, self.X_test_idx, self.y_train_idx, self.y_test_idx = \
+                train_test_split(Xidx, yidx, test_size=test_size, shuffle=True, random_state=seed)
         pass
 
-    def evaluate(self):
+    def evaluate(self, embeddings:np.ndarray|pd.DataFrame=None, **kwargs):
+        """Evaluate the node classification performance of the embeddings.
+        - embeddings: np.ndarray or pd.DataFrame of node embeddings shape (n_nodes, n_features). If provided, overwrite the existing embeddings.
+        """
+        self.setup(embeddings=embeddings, prepare_data=False)
+
+        X_train = self.Z[self.X_train_idx]
+        X_test = self.Z[self.X_test_idx]
+        y_train = self.y[self.y_train_idx].ravel()
+        y_test = self.y[self.y_test_idx].ravel()
+
         # fit the model
-        self.clf.fit(self.X_train, self.y_train)
-        self.y_pred = self.clf.predict(self.X_test)
+        self.clf.fit(X_train, y_train)
+        y_pred = self.clf.predict(X_test)
         
         # produce metrics
-        accuracy  = accuracy_score(self.y_test, self.y_pred)
-        f1_micro  = f1_score(self.y_test, self.y_pred, average='micro')
-        f1_macro  = f1_score(self.y_test, self.y_pred, average='macro')
-        f1_weighted = f1_score(self.y_test, self.y_pred, average='weighted')
+        accuracy  = accuracy_score(y_test, y_pred)
+        f1_micro  = f1_score(y_test, y_pred, average='micro')
+        f1_macro  = f1_score(y_test, y_pred, average='macro')
+        f1_weighted = f1_score(y_test, y_pred, average='weighted')
 
-        precision = precision_score(self.y_test, self.y_pred, average='weighted')
-        recall    = recall_score(self.y_test, self.y_pred, average='weighted')
-        confusion = confusion_matrix(self.y_test, self.y_pred)
+        precision = precision_score(y_test, y_pred, average='weighted')
+        recall    = recall_score(y_test, y_pred, average='weighted')
+        confusion = confusion_matrix(y_test, y_pred)
         try:
-            roc_auc = roc_auc_score(self.y_test, self.y_pred, average='weighted')
+            roc_auc = roc_auc_score(y_test, y_pred, average='weighted')
         except ValueError:
             roc_auc = None
 
@@ -113,5 +134,9 @@ class NodeClassification:
 
 
 def eval_nc(embeddings, labels, test_size:float=0.5, classification_model:str='rf', seed=None, **kwargs):
-    nc = NodeClassification(embeddings, labels, test_size, classification_model, seed, **kwargs)
-    return nc.evaluate()
+    kwargs = rns(kwargs)
+    kwargs.test_size = test_size
+    kwargs.classification_model = classification_model
+    kwargs.seed = seed
+    nc = NodeClassification(embeddings, labels, **kwargs)
+    return nc.evaluate(embeddings=embeddings, **kwargs)
