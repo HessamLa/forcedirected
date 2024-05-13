@@ -12,15 +12,15 @@ def load_graph(edgelist, nodelist='', features='', labels='', **kwargs):
     # load nodes first to keep the order of nodes as found in nodes or labels file
     if(os.path.exists(nodelist)):
         Gx.add_nodes_from(np.loadtxt(nodelist, dtype=str, usecols=0))
-        print('loaded nodes from nodes file')
+        print('Loaded nodes from nodes file')
     elif(os.path.exists(features)):
         Gx.add_nodes_from(np.loadtxt(features, dtype=str, usecols=0))
-        print('loaded nodes from features file')
+        print('Loaded nodes from features file')
     elif(os.path.exists(labels)):
         Gx.add_nodes_from(np.loadtxt(labels, dtype=str, usecols=0))   
-        print('loaded nodes from labels file')
+        print('Loaded nodes from labels file')
     else:
-        print('no nodes were loaded from files. nodes will be loaded from edgelist file.')
+        print('Nodes will ONLY be loaded from edgelist file.')
 
     # add edges from args.path_edgelist
     Gx.add_edges_from(np.loadtxt(edgelist, dtype=str))
