@@ -62,7 +62,6 @@ def nc(**options):
     if(not os.path.exists(options.path_label)):
         print(f"Labels file not found: {options.path_label}")
         exit(1)
-
     if(options.train_size is None):
         options.train_size = 1 - options.test_size
     else:
@@ -79,13 +78,9 @@ def nc(**options):
     
 
     # load the labels from options.path_label according to the format
-    if options.path_label:
-        y = read_csv(options.path_label)
-        y.rename(columns={y.columns[0]: 'id'}, inplace=True)
-        y['id'] = y['id'].astype(str)
-    else:
-        print("No labels provided. Skipping node classification evaluation.")
-        return
+    y = read_csv(options.path_label)
+    y.rename(columns={y.columns[0]: 'id'}, inplace=True)
+    y['id'] = y['id'].astype(str)
     # rename the first column to 'id'
     
 
