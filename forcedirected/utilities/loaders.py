@@ -62,3 +62,42 @@ def load_labels(path_labels=''):
                 line = line.strip().split()
                 labels[line[0]] = line[1]
     return labels
+
+def read_csv(file_path):
+    """Read a CSV file and return the data, delimiter, and header presence. Then convert the data to a Pandas dataframe and returns it."""
+    import csv
+    with open(file_path, 'r', newline='', encoding='utf-8') as file:
+        content = file.read(4096)  # Read a portion of the file for sniffing
+        file.seek(0)  # Reset file pointer to the beginning
+        
+        sniffer = csv.Sniffer()
+        # Detect the CSV dialect (which includes the delimiter)
+        try:
+            dialect = sniffer.sniff(content)
+        except csv.Error:
+            # If the dialect cannot be determined, fall back to default settings
+            print("Could not determine file dialect. Falling back to comma delimiter.")
+            dialect = csv.excel()  # Default CSV dialect in Python assumes comma as delimiter
+        
+        # Check if the first row appears to be a header
+        has_header = sniffer.has_header(content)
+
+        # Read the file using detected dialect and header presence
+        file.seek(0)  # Reset file pointer again if we're going to read further
+        reader = csv.reader(file, dialect)
+        
+        headers = None
+        if has_header:
+            headers = next(reader)  # Extract headers
+            print("Detected headers:", headers)
+        else:
+            # print("No headers detected.")
+            pass
+
+        # Read and print the rest of the rows
+        data = list(reader)
+        # convert data to a Pandas dataframe
+        df = pd.DataFrame(data, columns=headers)
+        # return data, dialect.delimiter, has_header
+        return df
+    # End of read_csv

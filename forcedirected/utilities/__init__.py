@@ -5,6 +5,7 @@ from .optimize_batch_size import optimize_batch_size
 from .optimize_batch_count import optimize_batch_count
 
 from .loaders import load_graph, load_embeddings, load_stats, load_labels
+from .loaders import read_csv
 
 __all__ = [
     'ReportLog',
@@ -15,5 +16,6 @@ __all__ = [
     'load_graph',
     'load_embeddings',
     'load_stats',
-    'load_labels'
+    'load_labels',
+    'read_csv', # smart reader
 ]
