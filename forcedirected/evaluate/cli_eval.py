@@ -10,7 +10,7 @@ import pandas as pd
 import numpy as np
 import networkx as nx
 
-from forcedirected.utilities import load_graph
+from forcedirected.utilities import load_graph, read_csv
 from recursivenamespace import rns
 
 def common_options(func):
