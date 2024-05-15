@@ -3,35 +3,43 @@ import networkx as nx
 import numpy as np
 
 
-
 __all__ = [
     "sbm",
 ]
 
-def sbm(n_communities, p_intra, p_inter, seed=None, **kwargs):
+def generate_sizes(n_nodes, n_communities, equal_size=True, seed=None):
+    if(equal_size):
+        sizes = [n_nodes//n_communities]*n_communities
+        for i in range(n_nodes%n_communities):
+            sizes[i] += 1
+    else:
+        np.random.seed(seed)
+        # Generate n-1 random numbers between 0 and C
+        sizes = np.random.uniform(0, n_communities, size=n_nodes-1)    
+        # Calculate the remaining value to make the sum equal to C
+        remaining = n_communities - np.sum(sizes)
+        sizes = np.append(sizes, remaining)
+        np.random.shuffle(sizes)
+    assert len(sizes) == n_communities
+    assert sum(sizes) == n_nodes
+    return sizes
+
+def sbm(n_nodes, n_communities, p_intra, p_inter, seed=None, **kwargs):
     # print(f"Generating graph using Stochastic Block Model with parameters: n={n_nodes}, gamma={gamma}, beta={beta}, mu={mu}, min_degree={min_degree}, max_degree={max_degree}, average_degree={average_degree}, min_community={min_community}, max_community={max_community}.")
-    n_nodes = kwargs.get("n_nodes", 500)
     print(f"Generating graph using Stochastic Block Model with parameters: n={n_nodes}, ....")
-    sizes = [n_nodes // n_communities] * n_communities
-    sizes[-1] += n_nodes % n_communities  # Adjust the last community size if needed
+    # set seed
+    # generate size of each community
+
+    sizes = generate_sizes(n_nodes, n_communities, seed=seed)
+    
+    np.random.seed(seed)
     prob_matrix = np.full((n_communities, n_communities), p_inter)
     np.fill_diagonal(prob_matrix, p_intra)
-    G = nx.stochastic_block_model(sizes, prob_matrix)
+    G = nx.stochastic_block_model(sizes=sizes, p=prob_matrix, seed=seed)
     # for node, comm in nx.get_node_attributes(G, 'block').items():
     #     G.nodes[node]['community'] = G.nodes[node].pop('block')
     return G
-    # # change 'block' to 'community'
-    # for node, comm in nx.get_node_attributes(G, 'block').items():
-    #     G.nodes[node]['community'] = G.nodes[node].pop('block')
-    # print(G.nodes[0])
-    # for v in G:
-    #     print(G.nodes[v])
-    #     G.nodes[v]["community"]
-    #     break
-    # return G
-
-    pass
-
+    
 if __name__ == '__main__':
     print("Example usage")
     n = 1000
