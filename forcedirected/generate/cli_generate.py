@@ -23,6 +23,9 @@ def common_options(func):
     @click.option('--seed', type=int, default=None, help='Random seed for reproducibility.')
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
+        if(not os.path.exists(kwargs['outdir'])):
+            print("Generating output directory", kwargs['outdir'])
+            os.makedirs(kwargs['outdir'], exist_ok=True)
         return func(*args, **kwargs)
     return wrapper # End of common_options(.)
 
@@ -76,10 +79,13 @@ def write_labels(Gx, filepath, attrib=None):
 @click.option('--min-degree', type=int, default=None, help='Minimum degree of nodes (mutually exclusive with average-degree).')
 def lfr(**options):
     """Generate a synthetic graph using the LFR benchmark model."""
-    from . import lfr    
+    from . import lfr as generate_lfr    
     options = rns(options)
+
+    if(options.min_degree is not None): # exclusive with average-degree
+        options.average_degree = None
     # generate the graph
-    G = lfr.generate(**options)
+    G = generate_lfr(**options)
 
     # verify
     n = options.n_nodes
@@ -94,6 +100,9 @@ def lfr(**options):
     
     communities = {frozenset(G.nodes[v]["community"]) for v in G}
     print("Number of communities:", len(communities))
+    
+    modularity = nx.community.modularity(G, [set(v) for v in communities])
+    print("Modularity:", modularity)
     
     diameter = 0
     if(n_components == 1):
@@ -133,7 +142,7 @@ def lfr(**options):
 @click.option('--p_inter', type=float, default=0.01, help='Number of communities.')
 def sbm(**options):
     """Generate a synthetic graph using the Stochastic Block Model."""
-    from .sbm import generate_sbm
+    from . import sbm as generate_sbm
     options = rns(options)
     print("SMB with parameters:")
     for k,v in options.items():
@@ -162,6 +171,10 @@ def sbm(**options):
         else:
             blocks[block_id].append(v)
     print("Number of blocks:", len(blocks))
+
+    # Get the modularity
+    modularity = nx.community.modularity(Gx, [set(v) for v in blocks.values()])
+    print("Modularity:", modularity)
 
     # communities = frozenset((G.nodes[v]["community"] for v in G))
     # assert len(communities) == options.n_communities
