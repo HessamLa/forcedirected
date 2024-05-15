@@ -32,7 +32,6 @@ def sbm(n_nodes, n_communities, p_intra, p_inter, seed=None, **kwargs):
 
     sizes = generate_sizes(n_nodes, n_communities, seed=seed)
     
-    np.random.seed(seed)
     prob_matrix = np.full((n_communities, n_communities), p_inter)
     np.fill_diagonal(prob_matrix, p_intra)
     G = nx.stochastic_block_model(sizes=sizes, p=prob_matrix, seed=seed)
