@@ -32,10 +32,9 @@ class LinkPrediction:
             nodes = embeddings['id']
             nodes2 = list(self.G.nodes())
             if(not all(nodes == nodes2)):
-                print("ERROR: The nodes in the graph and the embeddings do not match.")
                 print("Graph nodes:", nodes2)
                 print("Embedding nodes:", nodes)
-                exit(1)
+                raise Exception("ERROR: The nodes in the graph and the embeddings do not match.")
 
         if(classification_model is not None):
             self.clf = classifier_models[classification_model].instantiate()
@@ -61,8 +60,8 @@ class LinkPrediction:
             ids_emb = set(self.embeddings['id'].tolist())
             ids_g = set(self.G.nodes())
             if(ids_emb != ids_g):
-                print("ERROR: The nodes IDs in the graph and the embeddings dataframe do not match.")
-                exit(1)
+                raise Exception("ERROR: The nodes IDs in the graph and the embeddings dataframe do not match.")
+                
             
             # make the node_id to node_index mapping according to embeddings 'id' column
             # self.node_to_index = {node: idx for idx, node in enumerate(self.embeddings['id'])}
@@ -128,15 +127,15 @@ class LinkPrediction:
         if('at_top_k' in metrics and X_test.shape[0] >= top_k):
             try:
                 # Make predictions on the test set
-                y_prob = self.classifier_model.predict_proba(X_test)[:, 1]
+                y_prob = self.clf.predict_proba(X_test)[:, 1]
                 # Sort the predicted probabilities in descending order
                 sorted_indices = np.argsort(y_prob)[::-1]
                 # Calculate P@k
                 result[f'p_at_{top_k}'] = precision_score(y_test[sorted_indices[:top_k]], np.ones(top_k))
                 # Calculate hit@100
                 result[f'hit_at_{top_k}'] = np.mean(y_test[sorted_indices[:top_k]] == 1)
-                print(result)
             except Exception as e:
+                raise e
                 print(e)
                 pass
         return result    
