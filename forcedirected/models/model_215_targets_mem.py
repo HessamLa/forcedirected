@@ -141,10 +141,11 @@ class FDModel(ForceDirected):
             print('hops.shape', self.hops.shape)
             print('hop_occurence.shape', self.hop_occurence.shape)
 
-        landmarks_idx = get_landmarks_idx_by_degree(Gx, ratio=landmarks_ratio)
+        self.log_ratio = landmarks_ratio*np.log(self.n_nodes).item()
+        landmarks_idx = get_landmarks_idx_by_degree(Gx, ratio=self.log_ratio)
         self.register_buffer('landmarks_idx', torch.tensor(landmarks_idx))
         if(self.verbosity>=1):
-            print(f'total landmark nodes:{len(self.landmarks_idx)} ({landmarks_ratio*100:.3f}%)')
+            print(f'total landmark nodes:{len(self.landmarks_idx)} ({self.log_ratio*100:.3f}%)')
         # zero-out the shell_avg_coeff for targets at hops > reach_max
         self.shell_avg_coeff[self.hops>self.reach_max] = 0
         # update shell_avg_coeff for landmark nodes

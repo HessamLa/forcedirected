@@ -80,10 +80,9 @@ def nc(**options):
     # load the labels from options.path_label according to the format
     y = read_csv(options.path_label)
     y.rename(columns={y.columns[0]: 'id'}, inplace=True)
-    y['id'] = y['id'].astype(str)
     # rename the first column to 'id'
+    y['id'] = y['id'].astype(str)
     
-
     # sort based on 'id' column
     y.sort_values('id', inplace=True)
     embeddings.sort_values('id', inplace=True)

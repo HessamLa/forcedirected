@@ -14,7 +14,7 @@ import pandas as pd
 import networkx as nx
 from ..utilities import load_graph
 
-def embed_line(n_dim:int, # place the required parameters here
+def embed_line(edgelist:str, n_dim:int, # place the required parameters here
                    epochs:int=1000, device:str='auto', **kwargs):
     
     if device == 'auto':

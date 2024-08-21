@@ -24,7 +24,7 @@ __all__ = [
     "embed_targets",
 ]
 
-def embed(n_dim:int, model_module:str|ModuleType, epochs:int=1000, device:str='auto', **kwargs):
+def embed(edgelist:str, n_dim:int, model_module:str|ModuleType, epochs:int=1000, device:str='auto', **kwargs):
     """Function for graph embedding using a forcedirected method. The model module is found in 'models' directory and is specified by 'model' parameter."""
     # load the forcedirected model
     if(isinstance(model_module, str)):
@@ -46,7 +46,7 @@ def embed(n_dim:int, model_module:str|ModuleType, epochs:int=1000, device:str='a
     print("")
 
     # load the graph
-    Gx = load_graph(**kwargs)
+    Gx = load_graph(edgelist, **kwargs)
     if(Gx.number_of_nodes()==0):
         print("Graph is empty")
         exit(1)
@@ -68,21 +68,18 @@ def embed(n_dim:int, model_module:str|ModuleType, epochs:int=1000, device:str='a
     embeddings_df = fdobj.get_embeddings_df()
     return embeddings_df # End of embed(.)
 
-
-def embed_basic(n_dim:int, epochs:int=1000, device:str='auto', **kwargs):
+def embed_basic(edgelist:str, n_dim:int, epochs:int=1000, device:str='auto', **kwargs):
     """Function for graph embedding using forcedirected basic method."""
-    # model_str = 'forcedirected.models.model_201_basic'
     from forcedirected.models import model_201_basic as model_module
-    return embed(n_dim, model_module, epochs, device, **kwargs)
+    return embed(edgelist, n_dim, model_module, epochs, device, **kwargs)
 
-def embed_shell(n_dim:int, epochs:int=1000, device:str='auto', **kwargs):
+def embed_shell(edgelist:str, n_dim:int, epochs:int=1000, device:str='auto', **kwargs):
     """Function for graph embedding using forcedirected with shell averaging method."""
-    model_str = 'forcedirected.models.model_204_shell'
     from forcedirected.models import model_204_shell as model_module
-    return embed(n_dim, model_module, epochs, device, **kwargs)
+    return embed(edgelist, n_dim, model_module, epochs, device, **kwargs)
 
 
-def embed_targets(n_dim:int, epochs:int=1000, device:str='auto', **kwargs):
+def embed_targets(edgelist:str, n_dim:int, epochs:int=1000, device:str='auto', **kwargs):
     """Function for graph embedding using forcedirected with shell averaging and selected targets method."""
     from forcedirected.models import model_214_targets as model_module
-    return embed(n_dim, model_module, epochs, device, **kwargs)
+    return embed(edgelist, n_dim, model_module, epochs, device, **kwargs)

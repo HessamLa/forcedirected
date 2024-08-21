@@ -7,6 +7,7 @@ def cli_embed():
 import os
 import functools
 from recursivenamespace import rns
+from .embed_utils import save_embeddings
 
 def common_options(func):
     """Decorator to apply common options to graph generation commands."""
@@ -16,8 +17,7 @@ def common_options(func):
     @click.option('--lr', type=float, default=1.0, help='Learning rate.', show_default=True)
     @click.option('--device', type=click.Choice(['auto', 'cpu', 'cuda']), default='auto', help='Device to use for computation.', show_default=True)
     @click.option('-n', '--name', type=str, help='Name of the graph.', required=True)
-    @click.option('-e', '--edgelist', type=click.Path(), help='Path to the edge list file. Either this or adjlist must be provided. (Somewhat required)')
-    @click.option('--adjlist', type=click.Path(), help='Path to the adjacency list. Either this or edgelist must be provided.')
+    @click.option('-e', '--edgelist', type=click.Path(), required=True, help='Path to the edge list file. Either this or adjlist must be provided.')
     @click.option('--outdir', type=click.Path(), default='./data', help='Output directory for the embeddings.', show_default=True)
     @click.option('--format',  type=click.Choice(['csv', 'pkl']), default='csv', help='Output file type. csv of Pandas pickle.', show_default=True)
     @click.option('--filename', type=click.Path(), help='Output filename for the embeddings. [default: <dataset>-<method>-d<dim>.<format>]', show_default=False)
@@ -31,35 +31,14 @@ def common_options(func):
     @functools.wraps(func)
     def wrapper(*args, **options):
         options = rns(options)
-        if(options.edgelist is None and options.adjlist is None):
-            print("Either edgelist or adjlist must be provided.")
-            exit(1)
-        if(options.edgelist and not os.path.exists(options.edgelist)):
+        if(not os.path.exists(options.edgelist)):
             print(f"Edge list file not found: {options.edgelist}")
             exit(1)
-        if(options.adjlist and not os.path.exists(options.adjlist)):
-            print(f"Adjacency list file not found: {options.adjlist}")
-            exit(1)        
         return func(*args, **options)
     return wrapper
 
-def save_embeddings(embeddings_df, filepath, format='csv', set_column_names=False):
-    """Save the embeddings to a file."""
-    if(set_column_names is True):
-        # Apply the columns name [id, dim_1, ... dim_d]."""
-        columns = [f'dim_{i}' for i in range(embeddings_df.shape[1])]
-        columns[0] = 'id'
-        embeddings_df.columns = columns
-    
-    os.makedirs(os.path.dirname(filepath), exist_ok=True)
-    if(format=='csv'):
-        embeddings_df.to_csv(filepath, index=False)
-    elif(format=='pkl'):
-        embeddings_df.to_pickle(filepath)
-    print(f"Embeddings saved to {filepath}")
-
-
 def fd_base(**options):
+    """Base function for forcedirected embedding."""
     options = rns(options)
 
     # Make the filename
@@ -70,10 +49,7 @@ def fd_base(**options):
     for k,v in options.items():
         print(f"{str(k):<16s}: {v}")
     
-    if(len(options.edgelist) != 0):
-        print("Input graph path     :", options.edgelist)
-    elif(len(options.adjlist) != 0):
-        print("Input graph path     :", options.adjlist)    
+    print("Input graph path     :", options.edgelist)
     print("Embedding dimensions :", options.n_dim)
     print("Output directory     :", options.outdir)
     print("Output filename      :", options.filename)
@@ -227,7 +203,7 @@ def fdtargets_mem(**options):
 @click.option('--walks-per-node', type=int, default=10, help='Number of walks per node.')
 @click.option('--num-negative-samples', type=int, default=1, help='Number of negative samples.')
 @click.option('--epochs', type=int, default=100, help='Number of epochs.', show_default=True) # override the common options
-def node2vec(**options):
+def node2vec(edgelist, **options):
     """Embed using the node2vec algorithm."""
     options = rns(options)
 
@@ -239,16 +215,13 @@ def node2vec(**options):
     for k,v in options.items():
         print(f"{str(k):<16s}: {v}")
 
-    if(len(options.edgelist) != 0):
-        print("Input graph path     :", options.edgelist)
-    elif(len(options.adjlist) != 0):
-        print("Input graph path     :", options.adjlist)    
+    print("Input graph path     :", options.edgelist)
     print("Embedding dimensions :", options.n_dim)
     print("Output directory     :", options.outdir)
     print("Output filename      :", options.filename)
 
     from .node2vec import embed_node2vec
-    embeddings_df = embed_node2vec(**options)
+    embeddings_df = embed_node2vec(edgelist, **options)
 
     save_embeddings(embeddings_df, filepath, options.format, set_column_names=True)
     # End of node2vec
@@ -278,8 +251,6 @@ def graphsage(**options):
 
     if(len(options.edgelist) != 0):
         print("Input graph path     :", options.edgelist)
-    elif(len(options.adjlist) != 0):
-        print("Input graph path     :", options.adjlist)    
     print("Embedding dimensions :", options.n_dim)
     print("Output directory     :", options.outdir)
     print("Output filename      :", options.filename)
@@ -313,10 +284,7 @@ def line(**options):
     for k,v in options.items():
         print(f"{str(k):<16s}: {v}")
 
-    if(len(options.edgelist) != 0):
-        print("Input graph path     :", options.edgelist)
-    elif(len(options.adjlist) != 0):
-        print("Input graph path     :", options.adjlist)    
+    print("Input graph path     :", options.edgelist)
     print("Embedding dimensions :", options.n_dim)
     print("Output directory     :", options.outdir)
     print("Output filename      :", options.filename)

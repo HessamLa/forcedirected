@@ -14,7 +14,7 @@ import pandas as pd
 import networkx as nx
 from ..utilities import load_graph
 
-def embed_node2vec(n_dim:int, p=1.0, q=0.5, walk_length=100, context_size=20, walks_per_node=20, num_negative_samples=1, 
+def embed_node2vec(edgelist:str, n_dim:int, p=1.0, q=0.5, walk_length=100, context_size=20, walks_per_node=20, num_negative_samples=1, 
                    epochs:int=1000, device:str='auto', **kwargs):
     """
     Returns a Pandas dataframe with node embeddings generated using the Node2Vec algorithm.
@@ -27,7 +27,7 @@ def embed_node2vec(n_dim:int, p=1.0, q=0.5, walk_length=100, context_size=20, wa
         device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
     # load the grpah into a Networkx object
-    Gx = load_graph(**kwargs)
+    Gx = load_graph(edgelist, **kwargs)
 
     # Convert NetworkX graph to PyTorch Geometric data object
     data = from_networkx(Gx)

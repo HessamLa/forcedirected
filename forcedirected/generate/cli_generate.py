@@ -9,6 +9,8 @@ import functools
 import networkx as nx
 from recursivenamespace import rns
 
+from .generate_util import write_labels, write_edgelist
+
 @cli_generate.group()
 def generate():
     """Generate synthetic graphs using various algorithms."""
@@ -28,46 +30,7 @@ def common_options(func):
             os.makedirs(kwargs['outdir'], exist_ok=True)
         return func(*args, **kwargs)
     return wrapper # End of common_options(.)
-
-
-def write_edgelist(Gx, filepath, attrib=None):
-    """
-    Writes the edge list of a NetworkX graph to a file, including specified edge attributes.
-    
-    Args:
-    - Gx: NetworkX graph object.
-    - filepath: The path to the file where the edge list will be saved.
-    - attrib: Optional; the name of the edge attribute to include in the file.
-    """
-    if attrib:
-        # Write edges with attributes
-        with open(filepath, 'w') as file:
-            for u, v, data in Gx.edges(data=True):
-                if attrib in data:
-                    file.write(f"{u} {v} {data[attrib]}\n")
-                else:
-                    file.write(f"{u} {v}\n")
-    else:
-        # Write edges without attributes
-        nx.write_edgelist(Gx, filepath, data=False)
-
-def write_labels(Gx, filepath, attrib=None):
-    """
-    Writes the nodes of a NetworkX graph to a file, including specified node attributes.
-    
-    Args:
-    - Gx: NetworkX graph object.
-    - filepath: The path to the file where the nodes will be saved.
-    - attrib: Optional; the name of the node attribute to include in the file.
-    """
-    # return
-    with open(filepath, 'w') as file:
-        for u in Gx.nodes():
-            try:
-                file.write(f"{u} {Gx.nodes[u][attrib]}\n")
-            except KeyError:
-                file.write(f"{u}\n")
-    
+   
 @common_options
 @click.option('--mu', type=float, default=0.5, help='Mixing parameter, fraction of intra-community edges to total edges. (0 <= mu <= 1)')
 @click.option('--gamma', type=float, default=2.01, help='Degree power-law distribution. (tau1)')
@@ -138,8 +101,8 @@ def lfr(**options):
 
 @common_options
 @click.option('-c', '--n_communities', type=int, default=5, help='Number of communities.')
-@click.option('--p_intra', type=float, default=0.25, help='Number of communities.')
-@click.option('--p_inter', type=float, default=0.01, help='Number of communities.')
+@click.option('--p_intra', type=float, default=0.25, help='Probablity of in-community links.')
+@click.option('--p_inter', type=float, default=0.01, help='Probablity of out-community links.')
 def sbm(**options):
     """Generate a synthetic graph using the Stochastic Block Model."""
     from . import sbm as generate_sbm

@@ -2,7 +2,6 @@
 import networkx as nx
 import numpy as np
 
-
 __all__ = [
     "sbm",
 ]
@@ -24,16 +23,26 @@ def generate_sizes(n_nodes, n_communities, equal_size=True, seed=None):
     assert sum(sizes) == n_nodes
     return sizes
 
-def sbm(n_nodes, n_communities, p_intra, p_inter, seed=None, **kwargs):
+def sbm(n_nodes, n_communities, p_intra=None, p_inter=None, seed=None, **kwargs):
     # print(f"Generating graph using Stochastic Block Model with parameters: n={n_nodes}, gamma={gamma}, beta={beta}, mu={mu}, min_degree={min_degree}, max_degree={max_degree}, average_degree={average_degree}, min_community={min_community}, max_community={max_community}.")
     print(f"Generating graph using Stochastic Block Model with parameters: n={n_nodes}, ....")
     # set seed
     # generate size of each community
 
     sizes = generate_sizes(n_nodes, n_communities, seed=seed)
+
+    if(p_inter is None):
+        # generate nxn random matrix
+        prob_matrix = np.random.random((n_communities, n_communities))
+    else:
+        prob_matrix = np.full((n_communities, n_communities), p_inter)
     
-    prob_matrix = np.full((n_communities, n_communities), p_inter)
-    np.fill_diagonal(prob_matrix, p_intra)
+    # within community link probability
+    if(p_intra is None):
+        # fill diagonal with randomly
+        np.fill_diagonal(prob_matrix, np.random.uniform(0.01, 0.1, n_communities))
+    else:
+        np.fill_diagonal(prob_matrix, p_intra)
     G = nx.stochastic_block_model(sizes=sizes, p=prob_matrix, seed=seed)
     # for node, comm in nx.get_node_attributes(G, 'block').items():
     #     G.nodes[node]['community'] = G.nodes[node].pop('block')
