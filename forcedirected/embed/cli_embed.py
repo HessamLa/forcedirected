@@ -68,7 +68,7 @@ def fd_base(**options):
 @click.option('--k4', type=float, default=0.01,  help='k4 parameter.')
 @click.option('--coeffs', nargs=4, type=float, help='Coefficients for the force calculation. If provided, overrides k1, k2, k3, k4. Used to shorten the syntanx.')
 def fd(**options):
-    """Embed using the force-directed algorithm, with the provided model."""
+    """Embed using the FD algorithm, with the provided model."""
     options = rns(options)
     if(options.filename is None):
         options.filename = f"{options.name}-{options.model_module}-d{options.n_dim}.{options.format}"
@@ -86,7 +86,7 @@ def fd(**options):
 @click.option('--k4', type=float, default=0.01,  help='k4 parameter.')
 @click.option('--coeffs', nargs=4, type=float, help='Coefficients for the force calculation. If provided, overrides k1, k2, k3, k4. Used to shorten the syntanx.')
 def fdbasic(**options):
-    """Embed using the force-directed basic algorithm."""
+    """Embed using the FD basic algorithm."""
     options = rns(options)
     # set the parameters
     if(options.coeffs is not None):
@@ -112,7 +112,7 @@ def fdbasic(**options):
 @click.option('--k4', type=float, default=0.01,  help='k4 parameter.')
 @click.option('--coeffs', nargs=4, type=float, help='Coefficients for the force calculation. If provided, overrides k1, k2, k3, k4. Used to shorten the syntanx.')
 def fdshell(**options):
-    """Embed using the force-directed basic algorithm with shell averaging."""
+    """Embed using the FD basic algorithm with shell averaging."""
     options = rns(options)
     if(options.coeffs is not None):
         options.k1 = float(options.coeffs[0])
@@ -140,7 +140,7 @@ def fdshell(**options):
 @click.option('--coeffs', nargs=7, type=(float, float, float, float, int, int, click.FloatRange(0, 1.0)), 
               help='Coefficients for the force calculation. If provided, overrides other parameters. Used to shorten the syntanx.')
 def fdtargets(**options):
-    """Embed using the force-directed algorithm with selective target nodes."""
+    """Embed using the FD algorithm with selective target nodes."""
     options = rns(options)
     # set the parameters
     if(options.coeffs is not None):
@@ -172,7 +172,7 @@ def fdtargets(**options):
 @click.option('--coeffs', nargs=7, type=(float, float, float, float, int, int, click.FloatRange(0, 1.0)), 
               help='Coefficients for the force calculation. If provided, overrides other parameters. Used to shorten the syntanx.')
 def fdtargets_mem(**options):
-    """Embed using the force-directed algorithm with selective target nodes (optimized memory utilization implementation)."""
+    """Embed using the FD algorithm with selective target nodes (optimized memory utilization implementation)."""
     options = rns(options)
     # set the parameters
     if(options.coeffs is not None):
@@ -295,3 +295,29 @@ def line(**options):
     save_embeddings(embeddings_df, filepath, options.format, set_column_names=True)
     # End of node2vec
     #########
+
+# this is the new idea
+@common_options
+@click.option('--k1', type=float, default=0.999, help='k1 parameter.')
+@click.option('--k2', type=float, default=1.0,   help='k2 parameter.')
+@click.option('--k3', type=float, default=10.0,  help='k3 parameter.')
+@click.option('--k4', type=float, default=0.01,  help='k4 parameter.')
+@click.option('--coeffs', nargs=4, type=float, help='Coefficients for the force calculation. If provided, overrides k1, k2, k3, k4. Used to shorten the syntanx.')
+def fdcandid(**options):
+    """Embed using the FD basic algorithm with candid nodes and shell averaging."""
+    options = rns(options)
+    if(options.coeffs is not None):
+        options.k1 = float(options.coeffs[0])
+        options.k2 = float(options.coeffs[1])
+        options.k3 = float(options.coeffs[2])
+        options.k4 = float(options.coeffs[3])
+    if(options.filename is None):
+        options.filename = f"{options.name}-fdcandid-d{options.n_dim}.{options.format}"
+
+    from forcedirected.models import model_224_candid_targets
+    options.model_module = model_224_candid_targets
+    fd_base(**options)
+    return
+    # End of fdcandid 
+    #########
+
