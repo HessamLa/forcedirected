@@ -33,7 +33,8 @@ setup(
     python_requires='>=3.6',
     install_requires=[
         'click>=8.1.3',
-        'matplotlib>=3.8.3',
+        #'matplotlib>=3.8.3',
+        'matplotlib>=3.7.1',
         'networkit>=10.1',
         'networkx>=3.0',
         'numpy>=1.23.5',
