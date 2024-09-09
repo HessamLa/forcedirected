@@ -1,6 +1,6 @@
 import os
 from types import ModuleType
-from typing import Any
+from typing import Any, Union
 
 import importlib
 import networkx as nx
@@ -24,7 +24,7 @@ __all__ = [
     "embed_targets",
 ]
 
-def embed(edgelist:str, n_dim:int, model_module:str|ModuleType, epochs:int=1000, device:str='auto', **kwargs):
+def embed(edgelist:str, n_dim:int, model_module:Union[str, ModuleType], epochs:int=1000, device:str='auto', **kwargs):
     """Function for graph embedding using a forcedirected method. The model module is found in 'models' directory and is specified by 'model' parameter."""
     # load the forcedirected model
     if(isinstance(model_module, str)):
