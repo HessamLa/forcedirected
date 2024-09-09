@@ -5,10 +5,10 @@ import networkx as nx
 import networkit as nk
 
 import torch
-from torch_geometric.data import Data
-import torch_geometric as pyg
-from torch_geometric.utils import to_networkx, to_networkit, from_networkit
-from torch_geometric.datasets import SNAPDataset
+# from torch_geometric.data import Data
+# import torch_geometric as pyg
+# from torch_geometric.utils import to_networkx, to_networkit, from_networkit
+# from torch_geometric.datasets import SNAPDataset
 
 # %%
 def convert_networkit_to_pyg(graph):
