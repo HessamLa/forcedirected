@@ -5,6 +5,7 @@ import numpy as np
 import random
 from itertools import combinations
 from sklearn.model_selection import train_test_split  # Import train_test_split function
+from typing import Union
 
 npconcat = lambda *x, axis=0: np.concatenate((x), axis=axis)
 
@@ -123,7 +124,7 @@ def _test_generate_negative_samples():
 negative_samlpes: 'random' or '<n>hop<+/->'. n is the hop distance and + or - is more or less.
 For example, '3hop+' means the negative samples are 2 or more hops away from the positive samples. 4hop- 4 or less hops away.
 """
-def prepare_edge_dataset(G:nx, train_size:float|int=0.5, test_size:float|int=None, negative_sampling_mode:str='random', seed:int=None):
+def prepare_edge_dataset(G:nx, train_size:Union[float,int]=0.5, test_size:Union[float,int]=None, negative_sampling_mode:str='random', seed:int=None):
     """
     Prepare the data for link prediction.
     train_size: the size or ratio of training data. If int [0, len(edges)], it's the number of training samples. If float [0,1], it's the ratio of training samples.
