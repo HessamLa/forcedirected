@@ -40,6 +40,7 @@ def embed(edgelist:str, n_dim:int, model_module:Union[str, ModuleType], epochs:i
                 model_module = importlib.import_module(importpath_2)
             except ImportError:
                 raise ImportError(f"Model not found at {importpath} or {importpath_2}")
+                    
     fdmodel = getattr(model_module, 'FDModel')
     print("==+==  Module file:", model_module.__file__)
     print("==+==  Model class:", fdmodel)
