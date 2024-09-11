@@ -64,7 +64,7 @@ def fd_base(**options):
 @click.option('--model', 'model_module', type=str, help='Path to the embeddings module. Ex. model_201_basic.', show_default=True, required=True)
 @click.option('--k1', type=float, default=0.999, help='k1 parameter.')
 @click.option('--k2', type=float, default=1.0,   help='k2 parameter.')
-@click.option('--k3', type=float, default=10.0,  help='k3 parameter.')
+@click.option('--k3', type=float, default=1.0,  help='k3 parameter.')
 @click.option('--k4', type=float, default=0.01,  help='k4 parameter.')
 @click.option('--coeffs', nargs=4, type=float, help='Coefficients for the force calculation. If provided, overrides k1, k2, k3, k4. Used to shorten the syntanx.')
 def fd(**options):
