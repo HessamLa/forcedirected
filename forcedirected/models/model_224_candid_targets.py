@@ -61,32 +61,79 @@ class FDModel(ForceDirected):
         # find maxhops, which is in range [0, n_nodes-1]. 0 is for totally disconnected graph.
         self.maxhops = max(hops[hops<self.n_nodes]) # hops<=n to exclude infinity values
         hops[hops>=self.n_nodes]=self.n_nodes  # disconncted nodes are 'n_nodes' hops away, to avoid infinity
-        self.register_buffer('hops', torch.tensor(hops))
-        if(self.verbosity>=1):
-            print("max hops:", self.maxhops)
-
         ###########################
         # # HERE IS THE MAIN CHANGE
         # For each row and its equivalent column (its symmetric), only keep the values 1 and 2 and maximum 
         # of t values not in {0, 1, 2}. Zero out the rest. 
         # This is to keep the target nodes in the 1st and 2nd proximity, and a fixed number of nodes chosed randomly.
-        t = int(np.log(self.n_nodes))
-        keep_max = 2 # keep the maximum of t values not in {0, 1, 2}
-        for i in range(self.hops.shape[0]):
-            idx = self.hops>keep_max
+        print("Settings the candid nodes.")
+        def update_hops_matrix(H, h, k):
+            import random
+            n = H.shape[0]  # number of nodes
+            Hupdate = np.zeros_like(H, dtype=float)
             
-            true_count = idx.sum().item()
-            if true_count > t:
-                # Get the indices of True values (values > keep_max)
-                true_indices = torch.where(idx)[0]
+            for i in range(n):
+                if(i%1000==0):
+                    print(i)
+                # Nodes within h-hops
+                within_h = set(np.where((H[i] <= h) & (H[i] > 0))[0])
                 
-                # Randomly select indices to change to False
-                # num_to_change = true_count - t
-                cnt_to_keep = t
-                keep_indices = torch.randperm(true_count)[:cnt_to_keep]
-            self.hops[i, true_indices[keep_indices]] = 0
-            self.hops[true_indices[keep_indices], i] = 0
+                # Nodes more than h-hops away
+                beyond_h = set(np.where(H[i] > h)[0])
+                
+                # Randomly select up to k nodes from beyond_h
+                random_beyond_h = set(random.sample(beyond_h, min(k, len(beyond_h))))
+                
+                # Combine the sets
+                reachable = within_h.union(random_beyond_h)
+                
+                # Update Hupdate matrix
+                for j in reachable:
+                    Hupdate[i, j] = H[i, j]
+            
+            return Hupdate
+        
+        keep_max = 2 # keep the maximum of t values not in {0, 1, 2}
+        t = int(np.log(self.n_nodes))
+        print(f"keep_max={keep_max},  random nodes={t}")
+        hops = update_hops_matrix(hops, keep_max, t)
+        # count non-zero elements in the matrix
+        non_zero_count = (hops>0).sum().item()
+        print(f"non-zero count:{non_zero_count} ({np.sqrt(non_zero_count)})")
+        print(f"ratio saved: {100-non_zero_count*100/(self.n_nodes**2):.3f}%")
+
+
+        # t = int(np.log(self.n_nodes))
+        # keep_max = 2 # keep the maximum of t values not in {0, 1, 2}
+        # idx = self.hops[i,:]>keep_max
+        # for i in range(self.hops.shape[0]):    
+        #     true_count = idx.sum().item()
+        #     print(f"Node {i}: count of entries > {keep_max} = {true_count:3d} ", end="")
+        #     if true_count > t:
+        #         # Get the indices of True values (values > keep_max)
+        #         true_indices = torch.where(idx[i, :])[0]
+                
+        #         # Randomly select indices to change to False
+        #         # change_count = true_count - t
+        #         change_indices = torch.randperm(true_count)[:change_count]
+                
+        #         # cnt_to_keep = t
+        #         # keep_indices = torch.randperm(true_count)[:cnt_to_keep]
+        #     # self.hops[i, true_indices[keep_indices]] = 0
+        #     # self.hops[true_indices[keep_indices], i] = 0
+        #     self.hops[i, true_indices[change_indices]] = 0
+        #     self.hops[true_indices[change_indices], i] = 0
+        #     print(f"Node {i}: count of entries <= {keep_max} = {self.hops}, count of entries > {keep_max} = {change_count}")
+        #     assert (self.hops[i, idx]>keep_max).sum().item() == t
+        #     assert (self.hops[idx, i]>keep_max).sum().item() == t
+        #     print()
         ###########################
+
+
+        self.register_buffer('hops', torch.tensor(hops))
+        if(self.verbosity>=1):
+            print("max hops:", self.maxhops)
+
 
         # generate the random embeddings
         Z = torch.tensor(generate_random_points(self.n_nodes, self.n_dim), )
@@ -104,7 +151,6 @@ class FDModel(ForceDirected):
         if(self.verbosity>=3):
             print('hops.shape', self.hops.shape)
             print('hop_occurence.shape', self.hop_occurence.shape)
-        exit()
         pass
         
 
