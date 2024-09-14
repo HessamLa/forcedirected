@@ -9,15 +9,32 @@ import functools
 from recursivenamespace import rns
 from .embed_utils import save_embeddings
 
+import yaml
+
+def read_config_file(config_path):
+    with open(config_path, 'r') as config_file:
+        return yaml.safe_load(config_file)
+
+def check_required_options(options:dict, required_list:list):
+    for opt in required_list:
+        if(opt not in options):
+            raise click.UsageError(f"Missing required option '{opt}'")
+        if(options[opt] is None):
+            raise click.UsageError(f"Missing required option '{opt}'")
+
+
 def common_options(func):
     """Decorator to apply common options to graph generation commands."""
+    required_options = ['name', 'edgelist'] # maintain the required options in this list.
+
     @cli_embed.command(context_settings=dict(show_default=True))
+    @click.option('--config', type=click.Path(exists=True), help='Path to the config file.')
     @click.option('-d', '--n-dim', '--ndim', type=int, default=128, help='Number of dimensions.')
     @click.option('--epochs', type=int, default=1000, help='Number of epochs.', show_default=True)
     @click.option('--lr', type=float, default=1.0, help='Learning rate.', show_default=True)
     @click.option('--device', type=click.Choice(['auto', 'cpu', 'cuda']), default='auto', help='Device to use for computation.', show_default=True)
-    @click.option('-n', '--name', type=str, help='Name of the graph.', required=True)
-    @click.option('-e', '--edgelist', type=click.Path(), required=True, help='Path to the edge list file. Either this or adjlist must be provided.')
+    @click.option('-n', '--name', type=str, help='Name of the graph.')
+    @click.option('-e', '--edgelist', type=click.Path(), help='Path to the edge list file. Either this or adjlist must be provided.')
     @click.option('--outdir', type=click.Path(), default='./data', help='Output directory for the embeddings.', show_default=True)
     @click.option('--format',  type=click.Choice(['csv', 'pkl']), default='csv', help='Output file type. csv of Pandas pickle.', show_default=True)
     @click.option('--filename', type=click.Path(), help='Output filename for the embeddings. [default: <dataset>-<method>-d<dim>.<format>]', show_default=False)
@@ -26,10 +43,21 @@ def common_options(func):
                 help='Verbosity level as defined in ForceDirected base model. '
                     '0: no output, 1: essential msg, 2: short msg, 3: full msg + exception msg, '
                     '4: full msg + exception msg + raise exception.')
-    
     @click.option('--seed', type=int, default=None, help='Random seed for reproducibility.', show_default=True)
+    
     @functools.wraps(func)
     def wrapper(*args, **options):
+        # read the config file
+        print("\n**** wrapper 1", options)
+        if options.get('config'):
+            config_options = read_config_file(options['config'])
+            # Update options with config file values, but don't override existing command-line arguments
+            for key, value in config_options.items():
+                if key not in options or options[key] is None:
+                    options[key] = value
+
+        check_required_options(options, required_options)
+
         options = rns(options)
         if(not os.path.exists(options.edgelist)):
             print(f"Edge list file not found: {options.edgelist}")
