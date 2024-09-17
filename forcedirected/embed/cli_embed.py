@@ -10,31 +10,41 @@ from recursivenamespace import rns
 from .embed_utils import save_embeddings
 
 import yaml
+def load_config(ctx, config_path):
+    options = {}
+    if(config_path is None):
+        return options
+    with open(config_path, 'r') as f:
+        config_params = yaml.safe_load(f)
+        for k,v in config_params.items():
+            parameter_source = ctx.get_parameter_source(k)
+            # print(f"{k:<20s}: {parameter_source}")
+            if(parameter_source is None):
+                options[k] = v
+            elif(parameter_source.name == "DEFAULT"):
+                options[k] = v # override the default params
+    return options
 
-def read_config_file(config_path):
-    with open(config_path, 'r') as config_file:
-        return yaml.safe_load(config_file)
-
-def check_required_options(options:dict, required_list:list):
-    for opt in required_list:
-        if(opt not in options):
-            raise click.UsageError(f"Missing required option '{opt}'")
-        if(options[opt] is None):
-            raise click.UsageError(f"Missing required option '{opt}'")
-
-
+def check_required(options, required):
+    missing_list=[]
+    for r in required:
+        if(options[r] is None):
+            # print(f"'{r}' is a required options and must be provide, either through the command line or config file.")
+            missing_list.append(r)
+    return missing_list            
+    
 def common_options(func):
     """Decorator to apply common options to graph generation commands."""
     required_options = ['name', 'edgelist'] # maintain the required options in this list.
-
+    
     @cli_embed.command(context_settings=dict(show_default=True))
     @click.option('--config', type=click.Path(exists=True), help='Path to the config file.')
     @click.option('-d', '--n-dim', '--ndim', type=int, default=128, help='Number of dimensions.')
     @click.option('--epochs', type=int, default=1000, help='Number of epochs.', show_default=True)
     @click.option('--lr', type=float, default=1.0, help='Learning rate.', show_default=True)
     @click.option('--device', type=click.Choice(['auto', 'cpu', 'cuda']), default='auto', help='Device to use for computation.', show_default=True)
-    @click.option('-n', '--name', type=str, help='Name of the graph.')
-    @click.option('-e', '--edgelist', type=click.Path(), help='Path to the edge list file. Either this or adjlist must be provided.')
+    @click.option('-n', '--name', type=str, help='Name of the graph. Required, either from the command line or the config file.') # required. input either from commmand line or the config file
+    @click.option('-e', '--edgelist', type=click.Path(), help='Path to the edge list file. Either this or adjlist must be provided. Required, either from the command line or the config file.') # required. input either from commmand line or the config file
     @click.option('--outdir', type=click.Path(), default='./data', help='Output directory for the embeddings.', show_default=True)
     @click.option('--format',  type=click.Choice(['csv', 'pkl']), default='csv', help='Output file type. csv of Pandas pickle.', show_default=True)
     @click.option('--filename', type=click.Path(), help='Output filename for the embeddings. [default: <dataset>-<method>-d<dim>.<format>]', show_default=False)
@@ -44,21 +54,20 @@ def common_options(func):
                     '0: no output, 1: essential msg, 2: short msg, 3: full msg + exception msg, '
                     '4: full msg + exception msg + raise exception.')
     @click.option('--seed', type=int, default=None, help='Random seed for reproducibility.', show_default=True)
-    
+    @click.pass_context
     @functools.wraps(func)
-    def wrapper(*args, **options):
-        # read the config file
-        print("\n**** wrapper 1", options)
-        if options.get('config'):
-            config_options = read_config_file(options['config'])
-            # Update options with config file values, but don't override existing command-line arguments
-            for key, value in config_options.items():
-                if key not in options or options[key] is None:
-                    options[key] = value
+    def wrapper(ctx, *args, **options):
+        options = rns(options)         
+        # load the config file
+        options.update(load_config(ctx, options.config))
+        
+        # check the required options
+        missing_options = check_required(options, required_options)
+        if(len(missing_options)>0):
+            for m in missing_options:
+                print(f"'{m}' is a required options and must be provide, either through the command line or config file.")
+            exit(1)
 
-        check_required_options(options, required_options)
-
-        options = rns(options)
         if(not os.path.exists(options.edgelist)):
             print(f"Edge list file not found: {options.edgelist}")
             exit(1)
@@ -69,9 +78,14 @@ def fd_base(**options):
     """Base function for forcedirected embedding."""
     options = rns(options)
 
+    # change the 'model' argument to 'model_module'
+    if ('model' in options):
+        options.model_module = options.model
+        del options.model
+
     # Make the filename
     if(options.filename is None):
-        raise ValueError("filename must be provided.")
+        options.filename = f"{options.name}-{options.model_module}-d{options.n_dim}.{options.format}"
     
     print("command with params:")
     for k,v in options.items():
@@ -88,19 +102,18 @@ def fd_base(**options):
     filepath = os.path.join(options.outdir, options.filename)
     save_embeddings(embeddings_df, filepath, options.format, set_column_names=True)
 
-@common_options
-@click.option('--model', 'model_module', type=str, help='Path to the embeddings module. Ex. model_201_basic.', show_default=True, required=True)
+# @click.option('--model', 'model_module', type=str, help='Path to the embeddings module. Ex. model_201_basic.', show_default=True, required=True)
+@click.option('--model', 'model_module', type=str, help='Path to the embeddings module. Ex. model_201_basic.', show_default=True)
 @click.option('--k1', type=float, default=0.999, help='k1 parameter.')
 @click.option('--k2', type=float, default=1.0,   help='k2 parameter.')
 @click.option('--k3', type=float, default=1.0,  help='k3 parameter.')
 @click.option('--k4', type=float, default=0.01,  help='k4 parameter.')
 @click.option('--coeffs', nargs=4, type=float, help='Coefficients for the force calculation. If provided, overrides k1, k2, k3, k4. Used to shorten the syntanx.')
+@common_options
 def fd(**options):
     """FD algorithm, with the provided model."""
     options = rns(options)
-    if(options.filename is None):
-        options.filename = f"{options.name}-{options.model_module}-d{options.n_dim}.{options.format}"
-
+    
     fd_base(**options)
     return
     # End of fd_basic 
