@@ -13,25 +13,62 @@ import networkx as nx
 from forcedirected.utilities import load_graph, read_csv
 from recursivenamespace import rns
 
+import yaml
+def load_config(ctx, config_path):
+    options = {}
+    if(config_path is None):
+        return options
+    with open(config_path, 'r') as f:
+        config_params = yaml.safe_load(f)
+        for k,v in config_params.items():
+            parameter_source = ctx.get_parameter_source(k)
+            # print(f"{k:<20s}: {parameter_source}")
+            if(parameter_source is None):
+                options[k] = v
+            elif(parameter_source.name == "DEFAULT"):
+                options[k] = v # override the default params
+    return options
+
+def check_required(options, required):
+    missing_list=[]
+    for r in required:
+        if(options[r] is None):
+            # print(f"'{r}' is a required options and must be provide, either through the command line or config file.")
+            missing_list.append(r)
+    return missing_list  
+
 def common_options(func):
     """Decorator to apply common options to graph generation commands."""
+    required_options = ['path_embeddings'] # maintain the required options in this list.
     @cli_eval.command(context_settings=dict(show_default=True))
+    @click.option('--config', type=click.Path(exists=True), default=None, help='Path to the config file.')
     @click.option('-n', '--name', type=str, help='Name of the graph.', required=False)
-    @click.option('-z', '--path_embeddings', type=click.Path(), help='Path to the graph embedding.', required=True)
+    @click.option('-z', '--path_embeddings', type=click.Path(), help='Path to the graph embedding.')
     @click.option('--embeddings-format', 'fmt_emb', type=click.Choice(['csv', 'pkl']), default='csv', help='Format of the embeddings file.', show_default=True)    
     @click.option('--verbosity', type=click.INT, default=2, show_default=True,
                 help='Verbosity level as defined in ForceDirected base model. '
                     '0: no output, 1: essential msg, 2: short msg, 3: full msg + exception msg, '
                     '4: full msg + exception msg + raise exception.')
     @click.option('--seed', type=int, default=None, help='Random seed for reproducibility.', show_default=True)
-
+    @click.pass_context
     @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        # check if the embeddings file exists
-        if(not os.path.exists(kwargs['path_embeddings'])):
-            print(f"Embeddings file not found: {kwargs['path_embeddings']}")
+    def wrapper(ctx, *args, **options):
+        options = rns(options)
+        # load the config file
+        options.update(load_config(ctx, options.config))
+        
+        # check the required options
+        missing_options = check_required(options, required_options)
+        if(len(missing_options)>0):
+            for m in missing_options:
+                print(f"'{m}' is a required options and must be provide, either through the command line or config file.")
             exit(1)
-        return func(*args, **kwargs)
+
+        # check if the embeddings file exists
+        if(not os.path.exists(options.path_embeddings) or not os.path.isfile(options.path_embeddings)):
+            print(f"Embeddings file not found: {options.path_embeddings}")
+            exit(1)
+        return func(*args, **options)
     return wrapper
     # End of common_options
 
