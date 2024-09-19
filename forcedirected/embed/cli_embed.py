@@ -47,7 +47,7 @@ def common_options(func):
     @click.option('-e', '--edgelist', type=click.Path(), help='Path to the edge list file. Either this or adjlist must be provided. Required, either from the command line or the config file.') # required. input either from commmand line or the config file
     @click.option('--outdir', type=click.Path(), default='./data', help='Output directory for the embeddings.', show_default=True)
     @click.option('--format',  type=click.Choice(['csv', 'pkl']), default='csv', help='Output file type. csv of Pandas pickle.', show_default=True)
-    @click.option('--filename', type=click.Path(), help='Output filename for the embeddings. [default: <dataset>-<method>-d<dim>.<format>]', show_default=False)
+    @click.option('-z', '--filename', type=click.Path(), help='Output filename for the embeddings. [default: <dataset>-<method>-d<dim>.<format>]', show_default=False)
 
     @click.option('--verbosity', type=click.INT, default=2, show_default=True,
                 help='Verbosity level as defined in ForceDirected base model. '
@@ -233,6 +233,44 @@ def fdtargets_mem(**options):
     return
     # End of fdtargets
     #########
+
+
+@common_options
+@click.option('-k1','--k1',      type=float, default=0.999, help='k1 parameter.')
+@click.option('-k2','--k2',      type=float, default=1.0,   help='k2 parameter.')
+@click.option('-k3','--k3',      type=float, default=10.0,  help='k3 parameter.')
+@click.option('-k4','--k4',      type=float, default=0.01,  help='k4 parameter.')
+@click.option('-a', '--reach_a', type=int,   default=1,    help='Attractive reach parameter.')
+@click.option('-r', '--reach_r', type=int,   default=4,    help='Repulsive reach parameter.')
+@click.option('-tlog', '--tlog_coeff', type=float, default=100, help='Coefficient for log(n), with n being the number of nodes.')
+@click.option('-L', '--landmarks_ratio', type=click.FloatRange(0, 1.0), default=0.01, help='Ratio of landmark nodes (top ratio of degrees).')
+@click.option('--coeffs', nargs=8, type=(float, float, float, float, int, int, click.FloatRange(0, 1.0)), 
+              help='Coefficients for the force calculation. If provided, overrides other parameters. Used to shorten the syntanx.')
+def fdlandmarks(**options):
+    """NON OPRATIONAL"""
+    # """FD algorithm with selective target nodes (optimized memory utilization implementation)."""
+    raise NotImplementedError("This function is not operational.")
+    options = rns(options)
+    # set the parameters
+    if(options.coeffs is not None):
+        options.k1 = options.coeffs[0]
+        options.k2 = options.coeffs[1]
+        options.k3 = options.coeffs[2]
+        options.k4 = options.coeffs[3]
+        options.reach_a = options.coeffs[4]
+        options.reach_r = options.coeffs[5]
+        options.tlog_coeff = options.coeffs[6]
+        options.landmarks_ratio = options.coeffs[7]
+    if(options.filename is None):
+        options.filename = f"{options.name}-fdlandmarks-d{options.n_dim}.{options.format}"
+
+    from forcedirected.models import model_224_random_landmarks
+    options.model_module = model_224_random_landmarks
+    fd_base(**options)
+    return
+    # End of fdtargets
+    #########
+
 
 # node2vec
 @common_options
