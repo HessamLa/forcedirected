@@ -23,6 +23,21 @@ def pairwise_difference(P0: torch.tensor, P1: torch.tensor = None) -> torch.tens
     D = P_col - P_row
     return D
 
+def pairwise_difference_masked(P0: torch.tensor, P1: torch.tensor = None, indices: torch.tensor = None) -> torch.tensor:
+    """
+    Calculates pairwise difference between points from P0 to P1 based on the indices.
+    If P1 is None, do pairwise difference between all pairs from P0.
+
+    
+
+    Returns a matrix such that M[i,j] = P_1[j]-P_0[i].
+    Summing row i corresponds with force from i to others
+    Summing col j corresponds with forces from other to j
+    """
+    if(P1 is None):
+        P1 = P0
+    raise NotImplementedError("pairwise_difference_masked(.) is not implemented yet.")
+    return D
 """
 hops is numpy.narray
 """
