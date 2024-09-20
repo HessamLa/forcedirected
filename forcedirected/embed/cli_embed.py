@@ -178,20 +178,20 @@ def fdshell(**options):
 @click.option('-a', '--reach_a', type=int,   default=1,    help='Attractive reach parameter.')
 @click.option('-r', '--reach_r', type=int,   default=4,    help='Repulsive reach parameter.')
 @click.option('-L', '--landmarks_ratio', type=click.FloatRange(0, 1.0), default=0.01, help='Ratio of landmark nodes (top ratio of degrees).')
-@click.option('--coeffs', nargs=7, type=(float, float, float, float, int, int, click.FloatRange(0, 1.0)), 
+@click.option('--coeffs', nargs=7, # type=(float, float, float, float, int, int, click.FloatRange(0, 1.0)), 
               help='Coefficients for the force calculation. If provided, overrides other parameters. Used to shorten the syntanx.')
 def fdtargets(**options):
     """FD algorithm with selective target nodes."""
     options = rns(options)
     # set the parameters
     if(options.coeffs is not None):
-        options.k1 = options.coeffs[0]
-        options.k2 = options.coeffs[1]
-        options.k3 = options.coeffs[2]
-        options.k4 = options.coeffs[3]
-        options.reach_a = options.coeffs[4]
-        options.reach_r = options.coeffs[5]
-        options.landmarks_ratio = options.coeffs[6]
+        options.k1 = float(options.coeffs[0])
+        options.k2 = float(options.coeffs[1])
+        options.k3 = float(options.coeffs[2])
+        options.k4 = float(options.coeffs[3])
+        options.reach_a = int(options.coeffs[4])
+        options.reach_r = int(options.coeffs[5])
+        options.landmarks_ratio = float(options.coeffs[6])
     if(options.filename is None):
         options.filename = f"{options.name}-fdtargets-d{options.n_dim}.{options.format}"
 
@@ -210,20 +210,20 @@ def fdtargets(**options):
 @click.option('-a', '--reach_a', type=int,   default=1,    help='Attractive reach parameter.')
 @click.option('-r', '--reach_r', type=int,   default=4,    help='Repulsive reach parameter.')
 @click.option('-L', '--landmarks_ratio', type=click.FloatRange(0, 1.0), default=0.01, help='Ratio of landmark nodes (top ratio of degrees).')
-@click.option('--coeffs', nargs=7, type=(float, float, float, float, int, int, click.FloatRange(0, 1.0)), 
+@click.option('--coeffs', nargs=7, #type=(float, float, float, float, int, int, click.FloatRange(0, 1.0)), 
               help='Coefficients for the force calculation. If provided, overrides other parameters. Used to shorten the syntanx.')
 def fdtargets_mem(**options):
     """FD algorithm with selective target nodes (optimized memory utilization implementation)."""
     options = rns(options)
     # set the parameters
     if(options.coeffs is not None):
-        options.k1 = options.coeffs[0]
-        options.k2 = options.coeffs[1]
-        options.k3 = options.coeffs[2]
-        options.k4 = options.coeffs[3]
-        options.reach_a = options.coeffs[4]
-        options.reach_r = options.coeffs[5]
-        options.landmarks_ratio = options.coeffs[6]
+        options.k1 = float(options.coeffs[0])
+        options.k2 = float(options.coeffs[1])
+        options.k3 = float(options.coeffs[2])
+        options.k4 = float(options.coeffs[3])
+        options.reach_a = int(options.coeffs[4])
+        options.reach_r = int(options.coeffs[5])
+        options.landmarks_ratio = float(options.coeffs[6])
     if(options.filename is None):
         options.filename = f"{options.name}-fdtargets_mem-d{options.n_dim}.{options.format}"
 
@@ -242,25 +242,25 @@ def fdtargets_mem(**options):
 @click.option('-k4','--k4',      type=float, default=0.01,  help='k4 parameter.')
 @click.option('-a', '--reach_a', type=int,   default=1,    help='Attractive reach parameter.')
 @click.option('-r', '--reach_r', type=int,   default=4,    help='Repulsive reach parameter.')
-@click.option('-tlog', '--tlog_coeff', type=float, default=100, help='Coefficient for log(n), with n being the number of nodes.')
+@click.option('-t', '--tlog_coeff', type=float, default=100, help='Coefficient for log(n), with n being the number of nodes.')
 @click.option('-L', '--landmarks_ratio', type=click.FloatRange(0, 1.0), default=0.01, help='Ratio of landmark nodes (top ratio of degrees).')
-@click.option('--coeffs', nargs=8, type=(float, float, float, float, int, int, click.FloatRange(0, 1.0)), 
+@click.option('--coeffs', nargs=8, # type=(float, float, float, float, int, int, click.FloatRange(0, 1.0)), 
               help='Coefficients for the force calculation. If provided, overrides other parameters. Used to shorten the syntanx.')
 def fdlandmarks(**options):
-    """NON OPRATIONAL"""
-    # """FD algorithm with selective target nodes (optimized memory utilization implementation)."""
-    raise NotImplementedError("This function is not operational.")
+    # """NON OPRATIONAL"""
+    """FD algorithm with selective target nodes (optimized memory utilization implementation)."""
+    # raise NotImplementedError("This function is not operational.")
     options = rns(options)
     # set the parameters
     if(options.coeffs is not None):
-        options.k1 = options.coeffs[0]
-        options.k2 = options.coeffs[1]
-        options.k3 = options.coeffs[2]
-        options.k4 = options.coeffs[3]
-        options.reach_a = options.coeffs[4]
-        options.reach_r = options.coeffs[5]
-        options.tlog_coeff = options.coeffs[6]
-        options.landmarks_ratio = options.coeffs[7]
+        options.k1 = float(options.coeffs[0])
+        options.k2 = float(options.coeffs[1])
+        options.k3 = float(options.coeffs[2])
+        options.k4 = float(options.coeffs[3])
+        options.reach_a = int(options.coeffs[4])
+        options.reach_r = int(options.coeffs[5])
+        options.tlog_coeff = float(options.coeffs[6])
+        options.landmarks_ratio = float(options.coeffs[7])
     if(options.filename is None):
         options.filename = f"{options.name}-fdlandmarks-d{options.n_dim}.{options.format}"
 
