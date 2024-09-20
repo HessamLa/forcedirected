@@ -1,6 +1,8 @@
 import networkx as nx
 import pandas as pd
 import numpy as np
+from typing import Union
+
 from forcedirected.utilities import load_graph
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
@@ -41,7 +43,7 @@ from forcedirected.evaluate import classifier_models
 # )
 
 class NodeClassification:
-    def __init__(self, embeddings:np.ndarray|pd.DataFrame=None, labels:np.ndarray|pd.DataFrame=None, test_size:float=0.5, classification_model:str='rf', seed=None, **kwargs) -> None:
+    def __init__(self, embeddings:Union[np.ndarray,pd.DataFrame]=None, labels:Union[np.ndarray,pd.DataFrame]=None, test_size:float=0.5, classification_model:str='rf', seed=None, **kwargs) -> None:
         """
         Initializes the NodeClassification object.
         - embeddings: np.ndarray or pd.DataFrame of node embeddings shape (n_nodes, n_features)
@@ -55,7 +57,7 @@ class NodeClassification:
         self.clf = None
         self.setup(embeddings, labels, test_size, classification_model, seed, **kwargs)
 
-    def setup(self, embeddings:np.ndarray|pd.DataFrame=None, labels:np.ndarray|pd.DataFrame=None, test_size:float=None, classification_model:str=None, seed=None, fit_transform=False, prepare_data=True, **kwargs):
+    def setup(self, embeddings:Union[np.ndarray,pd.DataFrame]=None, labels:Union[np.ndarray,pd.DataFrame]=None, test_size:float=None, classification_model:str=None, seed=None, fit_transform=False, prepare_data=True, **kwargs):
         """Setup the data and classifier.
         - prepare_data: bool, whether to prepare the data for evaluation. If True, the data is split into train test sets.
         """
@@ -91,7 +93,7 @@ class NodeClassification:
                 train_test_split(Xidx, yidx, test_size=test_size, shuffle=True, random_state=seed)
         pass
 
-    def evaluate(self, embeddings:np.ndarray|pd.DataFrame=None, **kwargs):
+    def evaluate(self, embeddings:Union[np.ndarray,pd.DataFrame]=None, **kwargs):
         """Evaluate the node classification performance of the embeddings.
         - embeddings: np.ndarray or pd.DataFrame of node embeddings shape (n_nodes, n_features). If provided, overwrite the existing embeddings.
         """
