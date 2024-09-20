@@ -115,7 +115,7 @@ def nc(**options):
     
 
     # load the labels from options.path_label according to the format
-    y = read_csv(options.path_label)
+    y = read_csv(options.path_label, has_header=False)
     y.rename(columns={y.columns[0]: 'id'}, inplace=True)
     # rename the first column to 'id'
     y['id'] = y['id'].astype(str)
