@@ -123,7 +123,17 @@ def nc(**options):
     # sort based on 'id' column
     y.sort_values('id', inplace=True)
     embeddings.sort_values('id', inplace=True)
-    
+
+    # remove the entries in y that are not in embeddings
+    y = y[y['id'].isin(embeddings['id'])]
+    y_ids = set(y['id'])
+    e_ids = set(embeddings['id'])
+    if(not y_ids == e_ids):
+        print("ERROR: The nodes in the labels and the embeddings do not match.")
+        # # show the difference
+        # print(f"Labels: {y_ids.difference(e_ids)}")
+        # print(f"Embeddings: {e_ids.difference(y_ids)}")
+        exit(1)
 
     from .node_classification import eval_nc
     results = eval_nc(embeddings.iloc[:,1:], y.iloc[:,1:], **options)
