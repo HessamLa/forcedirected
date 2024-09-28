@@ -44,7 +44,7 @@ def common_options(func):
     @click.option('--config', type=click.Path(exists=True), default=None, help='Path to the config file.')
     @click.option('-n', '--name', type=str, help='Name of the graph.', required=False)
     @click.option('-z', '--path_embeddings', type=click.Path(), help='Path to the graph embedding.')
-    @click.option('--embeddings-format', 'fmt_emb', type=click.Choice(['csv', 'pkl']), default='csv', help='Format of the embeddings file.', show_default=True)    
+    @click.option('--embeddings-format', 'fmt_emb', type=click.Choice(['csv', 'pkl', 'pqt']), default='csv', help='Format of the embeddings file.', show_default=True)    
     @click.option('--verbosity', type=click.INT, default=2, show_default=True,
                 help='Verbosity level as defined in ForceDirected base model. '
                     '0: no output, 1: essential msg, 2: short msg, 3: full msg + exception msg, '
@@ -78,11 +78,13 @@ def load_embeddings(filepath, format):
             embeddings = pd.read_csv(filepath)
         elif(format=='pkl'):
             embeddings = pd.read_pickle(filepath)
+        elif(format=='pqt'):
+            embeddings = pd.read_parquet(filepath)
         else:
             raise ValueError(f"Unknown embeddings format: {format}")
     except Exception as e:
         raise(f"Error loading embeddings from {filepath}. {e}")
-    print(f"Embeddings loaded from {filepath}")
+    print(f"Embeddings loaded from {filepath}.")
     return embeddings
     # End of load_embeddings
 
