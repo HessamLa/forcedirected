@@ -14,5 +14,9 @@ def save_embeddings(embeddings_df:pd.DataFrame, filepath:str, format:str='csv', 
         embeddings_df.to_csv(filepath, index=False)
     elif(format=='pkl'):
         embeddings_df.to_pickle(filepath)
+    elif(format=='pqt'):
+        embeddings_df.to_parquet(filepath)
+    else:
+        raise ValueError(f"Unknown embeddings format: {format}")
     print(f"Embeddings saved to {filepath}")
 
