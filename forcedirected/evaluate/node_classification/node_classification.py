@@ -64,7 +64,7 @@ class NodeClassification:
         if(embeddings is not None):
             if(isinstance(embeddings, pd.DataFrame)):
                 embeddings = embeddings.values
-            self.Z = embeddings
+            self.Z = embeddings.astype(float) # enforce float type
         
         if(labels is not None):
             if(isinstance(labels, pd.DataFrame)):
