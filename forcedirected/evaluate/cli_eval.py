@@ -111,9 +111,12 @@ def nc(**options):
         print(f"{str(k):<16s}: {v}")
 
     # load the embeddings from options.path_embeddings
-    embeddings = load_embeddings(options.path_embeddings, options.fmt_emb)
-    # set the 'id' column to string
-    embeddings['id'] = embeddings['id'].astype(str)
+    embeddings_df = load_embeddings(options.path_embeddings, options.fmt_emb)
+    
+    # include a 'id' column if not present
+    if('id' not in embeddings_df.columns):
+        embeddings_df['id'] = embeddings_df.index
+    embeddings_df['id'] = embeddings_df['id'].astype(str)
     
 
     # load the labels from options.path_label according to the format
@@ -124,12 +127,12 @@ def nc(**options):
     
     # sort based on 'id' column
     y.sort_values('id', inplace=True)
-    embeddings.sort_values('id', inplace=True)
+    embeddings_df.sort_values('id', inplace=True)
 
     # remove the entries in y that are not in embeddings
-    y = y[y['id'].isin(embeddings['id'])]
+    y = y[y['id'].isin(embeddings_df['id'])]
     y_ids = set(y['id'])
-    e_ids = set(embeddings['id'])
+    e_ids = set(embeddings_df['id'])
     if(not y_ids == e_ids):
         print("ERROR: The nodes in the labels and the embeddings do not match.")
         # # show the difference
@@ -138,7 +141,7 @@ def nc(**options):
         exit(1)
 
     from .node_classification import eval_nc
-    results = eval_nc(embeddings.iloc[:,1:], y.iloc[:,1:], **options)
+    results = eval_nc(embeddings_df.iloc[:,1:], y.iloc[:,1:], **options)
 
     print("Node classification results:")
     for k,v in results.items():
@@ -181,9 +184,12 @@ def lp(**options):
         print(f"{str(k):<16s}: {v}")
 
     # load the embeddings from options.path_embeddings
-    embeddings = load_embeddings(options.path_embeddings, options.fmt_emb)
-    # set the 'id' column to string
-    embeddings['id'] = embeddings['id'].astype(str)
+    embeddings_df = load_embeddings(options.path_embeddings, options.fmt_emb)
+
+    # include a 'id' column if not present
+    if('id' not in embeddings_df.columns):
+        embeddings_df['id'] = embeddings_df.index
+    embeddings_df['id'] = embeddings_df['id'].astype(str)
     
     # load the graph
     Gx = load_graph(edgelist=options.edgelist)
@@ -198,7 +204,7 @@ def lp(**options):
     from .link_prediction import eval_lp
     # def eval_lp(graph, embeddings, train_size:float=0.5, test_size:float=None, classification_model:str='rf', metrics='all', negative_sampling_mode='random', top_k=100, seed=None, **kwargs):
     # results = eval_lp(Gx, embeddings.iloc[:,1:], test_size=options.test_size, classification_model=options.classifier)
-    results = eval_lp(Gx, embeddings, classification_model=options.classifier, **options)
+    results = eval_lp(Gx, embeddings_df, classification_model=options.classifier, **options)
 
     # # load the labels from options.path_label according to the format
     # if options.path_label:
