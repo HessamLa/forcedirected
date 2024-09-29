@@ -75,17 +75,17 @@ def common_options(func):
 def load_embeddings(filepath, format):
     try:
         if(format=='csv'):
-            embeddings = pd.read_csv(filepath)
+            embeddings_df = pd.read_csv(filepath)
         elif(format=='pkl'):
-            embeddings = pd.read_pickle(filepath)
+            embeddings_df = pd.read_pickle(filepath)
         elif(format=='pqt'):
-            embeddings = pd.read_parquet(filepath)
+            embeddings_df = pd.read_parquet(filepath)
         else:
             raise ValueError(f"Unknown embeddings format: {format}")
     except Exception as e:
         raise(f"Error loading embeddings from {filepath}. {e}")
     print(f"Embeddings loaded from {filepath}.")
-    return embeddings
+    return embeddings_df
     # End of load_embeddings
 
 
@@ -115,7 +115,7 @@ def nc(**options):
     
     # include a 'id' column if not present
     if('id' not in embeddings_df.columns):
-        embeddings_df['id'] = embeddings_df.index
+        raise ValueError("Embeddings file must have an 'id' column which corresponds each row to a node.")
     embeddings_df['id'] = embeddings_df['id'].astype(str)
     
 
@@ -188,7 +188,7 @@ def lp(**options):
 
     # include a 'id' column if not present
     if('id' not in embeddings_df.columns):
-        embeddings_df['id'] = embeddings_df.index
+        raise ValueError("Embeddings file must have an 'id' column which corresponds each row to a node.")
     embeddings_df['id'] = embeddings_df['id'].astype(str)
     
     # load the graph
