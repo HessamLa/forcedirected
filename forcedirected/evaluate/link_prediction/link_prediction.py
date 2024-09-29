@@ -28,12 +28,12 @@ class LinkPrediction:
 
         if(embeddings is not None):
             self.embeddings = embeddings
-            self.Z = embeddings.iloc[:,1:]
+            self.Z = embeddings.iloc[:,1:].values.astype(float) # enforce float type
             nodes = embeddings['id']
             nodes2 = list(self.G.nodes())
             if(not all(nodes == nodes2)):
-                print("Graph nodes:", nodes2)
-                print("Embedding nodes:", nodes)
+                # print("Graph nodes:", nodes2)
+                # print("Embedding nodes:", nodes)
                 raise Exception("ERROR: The nodes in the graph and the embeddings do not match.")
 
         if(classification_model is not None):
@@ -66,7 +66,7 @@ class LinkPrediction:
             # make the node_id to node_index mapping according to embeddings 'id' column
             # self.node_to_index = {node: idx for idx, node in enumerate(self.embeddings['id'])}
             node_to_index = {self.embeddings['id'][i]:i for i in range(len(self.embeddings['id']))}
-            self.Z = self.embeddings.iloc[:,1:].values
+            self.Z = self.embeddings.iloc[:,1:].values.astype(float) # enforce float type
             
 
             if(fit_transform):
